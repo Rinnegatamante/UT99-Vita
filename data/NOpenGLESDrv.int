@@ -1,0 +1,8 @@
+; UT99_ANDROID_V133_OPENGL_ES_VIDEO_DRIVER_LABEL
+[Public]
+Object=(Name=NOpenGLESDrv.NOpenGLESRenderDevice,Class=Class,MetaClass=Engine.RenderDevice,Description=OpenGLES,Autodetect=)
+Preferences=(Caption="Rendering",Parent="Advanced Options")
+Preferences=(Caption="OpenGLES",Parent="Rendering",Class=NOpenGLESDrv.NOpenGLESRenderDevice,Immediate=True)
+
+[NOpenGLESRenderDevice]
+ClassCaption=OpenGLES
