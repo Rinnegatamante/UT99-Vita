@@ -2403,11 +2403,20 @@ static inline int get_bInMenu(uint8_t *this) {
     return *(int *)(StateNode + STATENAME_OFFSET) == NAMEINDEX_MENU;
 }
 
+void (*MouseDelta)(void *engine, void *vp, uint32_t click_flags, float dx, float dy);
+
 int TickInput(uint8_t *this) {
 	const float CurTime = ((float)sceKernelGetProcessTimeLow()) / 1000000.f;
 	const float DeltaTime = CurTime - InputUpdateTime;
 	
 	float mouse_delta[2] = {0.f, 0.f};
+	float *mouse_pos = ((float *)this + 15);
+	this[56] &= ~1; // This seemingly makes the cursor pop back in
+
+	uint8_t *client = *(uint8_t **)(this + 240);
+	uint8_t *engine = *(uint8_t **)(client + 40);
+	
+	uint8_t is_touching = 0;
 
 	SDL_Event Ev;
 	while( SDL_PollEvent( &Ev ) ) {
@@ -2418,6 +2427,16 @@ int TickInput(uint8_t *this) {
 		{
 			CauseInputEvent( JoyButtonMap[Ev.cbutton.button], ( Ev.type == SDL_CONTROLLERBUTTONDOWN ) ? IST_Press : IST_Release, 0.f );
 		}
+		break;
+	case SDL_MOUSEBUTTONDOWN:
+	case SDL_MOUSEBUTTONUP:
+		CauseInputEvent( IK_LeftMouse, ( Ev.type == SDL_MOUSEBUTTONDOWN ) ? IST_Press : IST_Release, 0.f );
+		break;
+	case SDL_MOUSEMOTION:
+		is_touching = 1;
+		mouse_pos[0] = Ev.motion.x;
+		mouse_pos[1] = Ev.motion.y;
+		this[56] |= 1; // Without this, the cursor doesn't warp (?)
 		break;
 	case SDL_CONTROLLERAXISMOTION:
 		{
@@ -2475,39 +2494,33 @@ int TickInput(uint8_t *this) {
 	}
 	}
 	
-	int isMenu = get_bInMenu(this);
 	
-	for ( int i = 0; i < SDL_CONTROLLER_AXIS_MAX; ++i )
-	{
-		const uint8_t Key = JoyAxisMap[i];
-		const int Value = JoyAxis[i];
-		if ( Value && Key && Key >= IK_MouseX )
-		{
-			float FltValue = ((float)Value) / 32767.f;
-			if (FltValue < -1.f)
-				FltValue = -1.f;
-			else if (FltValue > 1.f)
-				FltValue = 1.f;
-			float Scale = isMenu ? 10.f : ScaleRUV;
-			Scale *= JoyAxisDefaultScale[i] * DeltaTime;
-			if ( !InvertV && Key == IK_MouseY )
-				Scale = -Scale;
-			FltValue *= Scale;
-			if (Key == IK_MouseX)
-				mouse_delta[0] = FltValue;
-			else if (Key == IK_MouseY)
-				mouse_delta[1] = FltValue;
-			CauseInputEvent( Key, IST_Axis, FltValue );
+	if (!is_touching) {
+		int isMenu = get_bInMenu(this);
+		for ( int i = 0; i < SDL_CONTROLLER_AXIS_MAX; ++i ) {
+			const uint8_t Key = JoyAxisMap[i];
+			const int Value = JoyAxis[i];
+			if ( Value && Key && Key >= IK_MouseX )
+			{
+				float FltValue = ((float)Value) / 32767.f;
+				if (FltValue < -1.f)
+					FltValue = -1.f;
+				else if (FltValue > 1.f)
+					FltValue = 1.f;
+				float Scale = isMenu ? 10.f : ScaleRUV;
+				Scale *= JoyAxisDefaultScale[i] * DeltaTime;
+				if ( !InvertV && Key == IK_MouseY )
+					Scale = -Scale;
+				FltValue *= Scale;
+				if (Key == IK_MouseX)
+					mouse_delta[0] = FltValue;
+				else if (Key == IK_MouseY)
+					mouse_delta[1] = FltValue;
+				CauseInputEvent( Key, IST_Axis, FltValue );
+			}
 		}
+		MouseDelta(engine, this, 0, mouse_delta[0], mouse_delta[1]);
 	}
-	
-	uint8_t *ptr = *(uint8_t **)(this + 240);
-	if (ptr)
-		ptr = *(uint8_t **)(ptr + 40);
-	uint8_t *class = ptr;
-	ptr  = *(uint8_t **)ptr;
-	void (*MouseDelta)(void *this, void *viewport, uint32_t click_flags, float dx, float dy) = *(void(**)(void*, void*, uint32_t, float, float))(ptr + 132);
-	MouseDelta(class, this, 0, mouse_delta[0], mouse_delta[1]);
 	
 	InputUpdateTime = CurTime;
 	
@@ -2522,6 +2535,7 @@ void patch_game(void) {
 	hook_addr(so_symbol(&main_mod, "_Z9appThrowfPKcz"), appThrowF);
 	hook_addr(so_symbol(&main_mod, "_ZN13UNSDLViewport9TickInputEv"), TickInput);
 	_CauseInputEvent = so_symbol(&main_mod, "_ZN13UNSDLViewport15CauseInputEventEi12EInputActionf");
+	MouseDelta = so_symbol(&main_mod, "_ZN11UGameEngine10MouseDeltaEP9UViewportjff");
 }
 
 void *pthread_main(void *arg) {
