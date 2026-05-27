@@ -2339,7 +2339,7 @@ enum EInputAction
 const uint8_t JoyButtonMap[SDL_CONTROLLER_BUTTON_MAX] =
 {
 	/* BUTTON_CROSS         */ IK_Space, // Jump
-	/* BUTTON_CIRCLE        */ IK_F, // Traslator
+	/* BUTTON_CIRCLE        */ IK_P, // Weapon Slot 0 (Translator/Hammer)
 	/* BUTTON_SQUARE        */ IK_C, // Crouch
 	/* BUTTON_TRIANGLE      */ IK_B, // Best Weapon
 	/* BUTTON_SELECT        */ IK_H, // Show Score
@@ -2350,7 +2350,7 @@ const uint8_t JoyButtonMap[SDL_CONTROLLER_BUTTON_MAX] =
 	/* BUTTON_LEFTSHOULDER  */ IK_RightMouse, // Alt Fire
 	/* BUTTON_RIGHTSHOULDER */ IK_LeftMouse, // Fire
 	/* BUTTON_DPAD_UP       */ IK_Y, // Feign Death
-	/* BUTTON_DPAD_DOWN     */ IK_P, // Impact Hammer
+	/* BUTTON_DPAD_DOWN     */ IK_P, // Weapon Slot 0 (Translator/Hammer)
 	/* BUTTON_DPAD_LEFT     */ IK_Q, // Prev Weapon
 	/* BUTTON_DPAD_RIGHT    */ IK_N, // Next Weapon
 };
