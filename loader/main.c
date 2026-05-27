@@ -474,8 +474,12 @@ fake_fd *fake_fds_pool[FDS_ARRAY_SIZE];
 FILE *fopen_hook(char *fname, char *mode) {
 	FILE *f;
 	char real_fname[256];
-	dlog("fopen(%s,%s)\n", fname, mode);
-	if (strncmp(fname, "ux0:", 4)) {
+	//dlog("fopen(%s,%s)\n", fname, mode);
+	if (!strncmp(fname, "../Textures/Package", 19)) {
+		sprintf(real_fname, "ux0:data/ut99/Textures/Package0.utx");
+		dlog("fopen(%s,%s) ON PACKAGE!!!!\n", real_fname, mode);
+		f = fopen(real_fname, mode);
+	} else if (strncmp(fname, "ux0:", 4)) {
 		sprintf(real_fname, "ux0:data/ut99/System/%s", fname);
 		dlog("fopen(%s,%s) patched\n", real_fname, mode);
 		f = fopen(real_fname, mode);
@@ -499,6 +503,9 @@ FILE *fopen_hook(char *fname, char *mode) {
 		fclose(f);
 #endif
 		return (FILE *)fd;
+	}
+	if (!f) {
+		dlog("fopen failed for %s\n", real_fname);
 	}
 	return f;
 }
