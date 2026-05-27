@@ -2377,8 +2377,8 @@ const float JoyAxisDefaultScale[SDL_CONTROLLER_AXIS_MAX] =
 
 static int JoyAxis[SDL_CONTROLLER_AXIS_MAX];
 
-uint8_t InvertV = 0, InvertY = 0;
-float ScaleRUV = 100.f, ScaleXYZ = 200.f;
+uint8_t InvertV = 0;
+float ScaleRUV = 100.f;
 float DeadZoneRUV = 0.1f, DeadZoneXYZ = 0.3f;
 
 #define Abs(x) ((x) < 0 ? -(x) : (x))
@@ -2442,13 +2442,13 @@ int TickInput(uint8_t *this) {
 					if (Key == IK_JoyX) {
 						CauseInputEvent( IK_A, IST_Press, 0.f );
 					} else {
-						CauseInputEvent( InvertY ? IK_S : IK_W, IST_Press, 0.f );
+						CauseInputEvent( IK_W, IST_Press, 0.f );
 					}
 				} else if (NewValue > 0 && JoyAxis[Ev.caxis.axis] <= 0) {
 					if (Key == IK_JoyX) {
 						CauseInputEvent( IK_D, IST_Press, 0.f );
 					} else {
-						CauseInputEvent( InvertY ? IK_W : IK_S, IST_Press, 0.f );
+						CauseInputEvent( IK_S, IST_Press, 0.f );
 					}
 				} else if (NewValue == 0 && JoyAxis[Ev.caxis.axis] != 0) {
 					if (Key == IK_JoyX) {
@@ -2642,6 +2642,36 @@ int main(int argc, char *argv[]) {
 	for (int i = 0; i < sizeof(to_purge_files) / sizeof(*to_purge_files); i++) {
 		sceIoRemove(to_purge_files[i]);
 	}
+	
+	#define extractValue(val) \
+		{ \
+			char *s = strstr(tmp, #val "="); \
+			if (s) { \
+				char *end = strstr(s, "\n"); \
+				sceClibMemcpy(line, s, end - s); \
+				line[end - s] = 0; \
+				sscanf(line, #val "=%f", &val); \
+				sceClibPrintf(#val " set to %f\n", val); \
+			} \
+		}
+	
+	FILE *f = fopen("ux0:data/ut99/System/VitaUT99.ini", "rb");
+	char *tmp = malloc(1024 * 1024);
+	fread(tmp, 1, 1024 * 1024, f);
+	fclose(f);
+	char line[32];
+	extractValue(DeadZoneXYZ)
+	extractValue(DeadZoneRUV)
+	extractValue(ScaleRUV)
+	char *s = strstr(tmp, "InvertV=");
+	if (s) {
+		if (s[8] == 'T') {
+			InvertV = 1;
+		} else {
+			InvertV = 0;
+		}
+	}
+	free(tmp);
 
 	if (check_kubridge() < 0)
 		fatal_error("Error kubridge.skprx is not installed.");
