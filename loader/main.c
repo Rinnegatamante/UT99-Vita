@@ -2384,7 +2384,10 @@ const float JoyAxisDefaultScale[SDL_CONTROLLER_AXIS_MAX] =
 
 static int JoyAxis[SDL_CONTROLLER_AXIS_MAX];
 
+uint8_t UseJoystick = 0;
+float ScaleXYZ = 100.f;
 uint8_t InvertV = 0;
+uint8_t InvertY = 0;
 float ScaleRUV = 100.f;
 float DeadZoneRUV = 0.1f, DeadZoneXYZ = 0.3f;
 
@@ -2411,7 +2414,9 @@ int TickInput(uint8_t *this) {
 	
 	float mouse_delta[2] = {0.f, 0.f};
 	float *mouse_pos = ((float *)this + 15);
+#if 0
 	this[56] &= ~1; // This seemingly makes the cursor pop back in
+#endif
 
 	uint8_t *client = *(uint8_t **)(this + 240);
 	uint8_t *engine = *(uint8_t **)(client + 40);
@@ -2424,19 +2429,25 @@ int TickInput(uint8_t *this) {
 	{
 	case SDL_CONTROLLERBUTTONDOWN:
 	case SDL_CONTROLLERBUTTONUP:
-		{
-			CauseInputEvent( JoyButtonMap[Ev.cbutton.button], ( Ev.type == SDL_CONTROLLERBUTTONDOWN ) ? IST_Press : IST_Release, 0.f );
-		}
+		CauseInputEvent( JoyButtonMap[Ev.cbutton.button], ( Ev.type == SDL_CONTROLLERBUTTONDOWN ) ? IST_Press : IST_Release, 0.f );
 		break;
 	case SDL_MOUSEBUTTONDOWN:
 	case SDL_MOUSEBUTTONUP:
+#if 0
 		CauseInputEvent( IK_LeftMouse, ( Ev.type == SDL_MOUSEBUTTONDOWN ) ? IST_Press : IST_Release, 0.f );
+#endif
 		break;
 	case SDL_MOUSEMOTION:
 		is_touching = 1;
+#if 0
 		mouse_pos[0] = Ev.motion.x;
 		mouse_pos[1] = Ev.motion.y;
 		this[56] |= 1; // Without this, the cursor doesn't warp (?)
+#else
+		CauseInputEvent( IK_MouseX, IST_Axis, Ev.motion.xrel * 2 );
+		CauseInputEvent( IK_MouseY, IST_Axis, -Ev.motion.yrel * 2 );
+		MouseDelta(engine, this, 0, Ev.motion.xrel, -Ev.motion.yrel * 2);
+#endif
 		break;
 	case SDL_CONTROLLERAXISMOTION:
 		{
@@ -2494,15 +2505,25 @@ int TickInput(uint8_t *this) {
 	}
 	}
 	
-	
 	if (!is_touching) {
 		int isMenu = get_bInMenu(this);
+		float x_gyro = 0.f, y_gyro = 0.f;
+		if (UseJoystick && !isMenu) {
+			SceMotionState motionstate;
+			sceMotionGetState(&motionstate);
+			x_gyro = motionstate.angularVelocity.y * ScaleXYZ;
+			y_gyro = (InvertY ? motionstate.angularVelocity.x : -motionstate.angularVelocity.x) * ScaleXYZ;
+		}
+		
 		for ( int i = 0; i < SDL_CONTROLLER_AXIS_MAX; ++i ) {
 			const uint8_t Key = JoyAxisMap[i];
 			const int Value = JoyAxis[i];
-			if ( Value && Key && Key >= IK_MouseX )
+			if ( (Value || !isMenu) && Key >= IK_MouseX )
 			{
 				float FltValue = ((float)Value) / 32767.f;
+				if (!isMenu) {
+					FltValue += Key == IK_MouseX ? x_gyro : y_gyro;
+				}
 				if (FltValue < -1.f)
 					FltValue = -1.f;
 				else if (FltValue > 1.f)
@@ -2675,6 +2696,15 @@ int main(int argc, char *argv[]) {
 				sceClibPrintf(#val " set to %f\n", val); \
 			} \
 		}
+		
+	#define extractBoolValue(val) \
+		{ \
+			char *s = strstr(tmp, #val "="); \
+			if (s) { \
+				val = s[strlen(#val "=")] == 'T'; \
+				sceClibPrintf(#val " set to %s\n", val ? "True" : "False"); \
+			} \
+		}	
 	
 	FILE *f = fopen("ux0:data/ut99/System/VitaUT99.ini", "rb");
 	char *tmp = malloc(1024 * 1024);
@@ -2684,15 +2714,16 @@ int main(int argc, char *argv[]) {
 	extractValue(DeadZoneXYZ)
 	extractValue(DeadZoneRUV)
 	extractValue(ScaleRUV)
-	char *s = strstr(tmp, "InvertV=");
-	if (s) {
-		if (s[8] == 'T') {
-			InvertV = 1;
-		} else {
-			InvertV = 0;
-		}
-	}
+	extractValue(ScaleXYZ)
+	extractBoolValue(InvertY)
+	extractBoolValue(InvertV)
+	extractBoolValue(UseJoystick)
 	free(tmp);
+	
+	if (UseJoystick) {
+		sceMotionReset();
+		sceMotionStartSampling();
+	}
 
 	if (check_kubridge() < 0)
 		fatal_error("Error kubridge.skprx is not installed.");
