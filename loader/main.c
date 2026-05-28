@@ -51,7 +51,7 @@
 
 #include "vorbis/vorbisfile.h"
 
-#define ENABLE_DEBUG
+//#define ENABLE_DEBUG
 
 #ifdef ENABLE_DEBUG
 #define dlog sceClibPrintf
@@ -2385,7 +2385,7 @@ const float JoyAxisDefaultScale[SDL_CONTROLLER_AXIS_MAX] =
 static int JoyAxis[SDL_CONTROLLER_AXIS_MAX];
 
 uint8_t UseJoystick = 0;
-float ScaleXYZ = 100.f;
+float ScaleXYZ = 1.f;
 uint8_t InvertV = 0;
 uint8_t InvertY = 0;
 float ScaleRUV = 100.f;
@@ -2511,7 +2511,7 @@ int TickInput(uint8_t *this) {
 		if (UseJoystick && !isMenu) {
 			SceMotionState motionstate;
 			sceMotionGetState(&motionstate);
-			x_gyro = motionstate.angularVelocity.y * ScaleXYZ;
+			x_gyro = -motionstate.angularVelocity.y * ScaleXYZ;
 			y_gyro = (InvertY ? motionstate.angularVelocity.x : -motionstate.angularVelocity.x) * ScaleXYZ;
 		}
 		
