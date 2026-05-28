@@ -114,6 +114,7 @@ cmake .. && make
 - TheFloW for the original .so loader.
 - fgsfds for helping me figure out some weird issues during the porting.
 - fl0w for helping out tuning the default settings for gyro aiming.
+- enri for the Livearea assets.
 - Andiweli for the Android port of ut99dc.
 - maximqaxd for ut99dc.
 - Northfear for the SDL2 fork with vitaGL as backend.
