@@ -38,6 +38,7 @@ There are a few options that are re-used for different purposes on Vita:
 - InvertY: Invert Y axis for gyro aiming.
 - InvertV: Invert Y axis for right analog aiming.
 - UseJoystick: Enables gyro aiming.
+
 The calculation for the aiming is done lossly as follow:
 ```
 FinalAimDelta = ((ScaleXYZ * GyroDelta) + RightAnalogDelta) * ScaleRUV
