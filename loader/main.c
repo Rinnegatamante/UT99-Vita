@@ -50,6 +50,7 @@
 #include "sha1.h"
 
 #include "vorbis/vorbisfile.h"
+#include "libc_bridge.h"
 
 //#define ENABLE_DEBUG
 
@@ -76,6 +77,7 @@ int file_exists(const char *path) {
 }
 
 int _newlib_heap_size_user = 330 * 1024 * 1024;
+int sceLibcHeapSize = 2 * 1024 * 1024;
 so_module main_mod, bridge_mod;
 
 int ret4() { return 4; }
@@ -469,22 +471,22 @@ uint32_t release_idx = 0;
 fake_fd fake_fds[FDS_ARRAY_SIZE];
 fake_fd *fake_fds_pool[FDS_ARRAY_SIZE];
 
-#define DEBUG_FOPEN
+//#define DEBUG_FOPEN
 
 FILE *fopen_hook(char *fname, char *mode) {
 	FILE *f;
 	char real_fname[256];
-	//dlog("fopen(%s,%s)\n", fname, mode);
+	dlog("fopen(%s,%s)\n", fname, mode);
 	if (!strncmp(fname, "../Textures/Package", 19)) {
 		sprintf(real_fname, "ux0:data/ut99/Textures/Package0.utx");
 		dlog("fopen(%s,%s) ON PACKAGE!!!!\n", real_fname, mode);
-		f = fopen(real_fname, mode);
+		f = sceLibcBridge_fopen(real_fname, mode);
 	} else if (strncmp(fname, "ux0:", 4)) {
 		sprintf(real_fname, "ux0:data/ut99/System/%s", fname);
 		dlog("fopen(%s,%s) patched\n", real_fname, mode);
-		f = fopen(real_fname, mode);
+		f = sceLibcBridge_fopen(real_fname, mode);
 	} else {
-		f = fopen(fname, mode);
+		return NULL; // This is done only to open log file, we don't care about it
 	}
 	if (mode[0] == 'r' && f) {
 		fake_fd *fd = fake_fds_pool[grab_idx];
@@ -494,18 +496,15 @@ FILE *fopen_hook(char *fname, char *mode) {
 		fd->buf = (uint8_t *)f;
 		fd->offs = 0xFFFFFFFF;
 #else
-		fseek(f, 0, SEEK_END);
-		fd->sz = ftell(f);
+		sceLibcBridge_fseek(f, 0, SEEK_END);
+		fd->sz = sceLibcBridge_ftell(f);
 		fd->buf = vglMalloc(fd->sz);
 		fd->offs = 0;
-		fseek(f, 0, SEEK_SET);
-		fread(fd->buf, 1, fd->sz, f);
-		fclose(f);
+		sceLibcBridge_fseek(f, 0, SEEK_SET);
+		sceLibcBridge_fread(fd->buf, 1, fd->sz, f);
+		sceLibcBridge_fclose(f);
 #endif
 		return (FILE *)fd;
-	}
-	if (!f) {
-		dlog("fopen failed for %s\n", real_fname);
 	}
 	return f;
 }
@@ -521,8 +520,8 @@ int fseek_hook(FILE *fp, long offs, int whence) {
 #if 1
 			if (fd->offs == 0xFFFFFFFF) {
 				fp = (FILE *)fd->buf;
-				fseek(fp, 0, SEEK_END);
-				fd->sz = ftell(fp);
+				sceLibcBridge_fseek(fp, 0, SEEK_END);
+				fd->sz = sceLibcBridge_ftell(fp);
 				fd->buf = vglMalloc(fd->sz);
 #ifdef DEBUG_FOPEN
 				if (!fd->buf) {
@@ -530,9 +529,9 @@ int fseek_hook(FILE *fp, long offs, int whence) {
 				}
 #endif
 				fd->offs = 0;
-				fseek(fp, 0, SEEK_SET);
-				fread(fd->buf, 1, fd->sz, fp);
-				fclose(fp);
+				sceLibcBridge_fseek(fp, 0, SEEK_SET);
+				sceLibcBridge_fread(fd->buf, 1, fd->sz, fp);
+				sceLibcBridge_fclose(fp);
 			}
 #endif
 			fd->offs = fd->sz + offs;
@@ -542,7 +541,7 @@ int fseek_hook(FILE *fp, long offs, int whence) {
 			return 0;
 		}
 	}
-	return fseek(fp, offs, whence);
+	return sceLibcBridge_fseek(fp, offs, whence);
 }
 
 size_t fread_hook(void *buffer, size_t size, size_t count, fake_fd *fd) {
@@ -557,7 +556,7 @@ long ftell_hook(FILE *fp) {
 	if (fd->magic == 0xBADDBADD) {
 		return fd->offs;
 	}
-	return ftell(fp);
+	return sceLibcBridge_ftell(fp);
 }
 
 int fclose_hook(FILE *fp) {
@@ -565,7 +564,7 @@ int fclose_hook(FILE *fp) {
 	if (fd->magic == 0xBADDBADD) {
 #if 1
 		if (fd->offs == 0xFFFFFFFF) {
-			fclose((FILE*)fd->buf);
+			sceLibcBridge_fclose((FILE*)fd->buf);
 		} else {
 			vglFree(fd->buf);
 		}
@@ -576,20 +575,8 @@ int fclose_hook(FILE *fp) {
 		release_idx = (release_idx + 1) % FDS_ARRAY_SIZE;
 		return 0;
 	}
-	return fclose(fp);
-}
-
-int open_hook(const char *fname, int flags, mode_t mode) {
-	int f;
-	char real_fname[256];
-	dlog("open(%s)\n", fname);
-	if (strncmp(fname, "ux0:", 4)) {
-		sprintf(real_fname, "ux0:data/ut99/System/%s", fname);
-		f = open(real_fname, flags, mode);
-	} else {
-		f = open(fname, flags, mode);
-	}
-	return f;
+	return sceLibcBridge_fclose(fp);
+	
 }
 
 extern void *__aeabi_atexit;
@@ -714,14 +701,6 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 int munmap(void *addr, size_t length) {
 	free(addr);
 	return 0;
-}
-
-int fstat_hook(int fd, void *statbuf) {
-	struct stat st;
-	int res = fstat(fd, &st);
-	if (res == 0)
-		*(uint64_t *)(statbuf + 0x30) = st.st_size;
-	return res;
 }
 
 extern void *__cxa_guard_acquire;
@@ -996,34 +975,6 @@ int mkdir_hook(const char *pathname, int mode) {
 	return mkdir(pathname, mode);
 }
 
-FILE *AAssetManager_open(void *mgr, const char *fname, int mode) {
-	char full_fname[256];
-	sprintf(full_fname, "ux0:data/ut99/System/%s", fname);
-	dlog("AAssetManager_open %s\n", full_fname);
-	return fopen(full_fname, "rb");
-}
-
-int AAsset_close(FILE *f) {
-	return fclose(f);
-}
-
-size_t AAsset_getLength(FILE *f) {
-	size_t p = ftell(f);
-	fseek(f, 0, SEEK_END);
-	size_t res = ftell(f);
-	fseek(f, p, SEEK_SET);
-	return res;
-}
-
-size_t AAsset_read(FILE *f, void *buf, size_t count) {
-	return fread(buf, 1, count, f);
-}
-
-size_t AAsset_seek(FILE *f, size_t offs, int whence) {
-	fseek(f, offs, whence);
-	return ftell(f);
-}
-
 static uint32_t last_fbo_w, last_fbo_h;
 void glFramebufferTexture2D_hook(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) {
 	if (attachment == GL_COLOR_ATTACHMENT0) {
@@ -1075,29 +1026,6 @@ int remove_hook(const char *pathname) {
 	return sceIoRemove(pathname);
 }
 
-DIR *AAssetManager_openDir(void *mgr, const char *fname) {
-	dlog("AAssetManager_opendir(%s)\n", fname);
-	if (strncmp(fname, "ux0:", 4)) {
-		char real_fname[256];
-		sprintf(real_fname, "ux0:data/ut99/System/%s", fname);
-		return opendir(real_fname);
-	}
-	
-	return opendir(fname);	
-}
-
-const char *AAssetDir_getNextFileName(DIR *assetDir) {
-	struct dirent *ent;
-	if (ent = readdir(assetDir)) {
-		return ent->d_name;
-	}
-	return NULL;
-}
-
-void AAssetDir_close(DIR *assetDir) {
-	closedir(assetDir);
-}
-
 int rename_hook(const char *old_filename, const char *new_filename) {
 	dlog("rename %s -> %s\n", old_filename, new_filename);
 	char real_old[256], real_new[256];
@@ -1121,35 +1049,6 @@ int SDL_Init_hook(uint32_t flags) {
 int nanosleep_hook(const struct timespec *req, struct timespec *rem) {
 	const uint32_t usec = req->tv_sec * 1000 * 1000 + req->tv_nsec / 1000;
 	return sceKernelDelayThreadCB(usec);
-}
-
-int SDL_PollEvent_hook(SDL_Event *event) {
-	int ret = SDL_PollEvent(event);
-	// Redirect L2/R2 to GameController bindings the game expects for those buttons
-	if (ret) {
-		if (event->type == SDL_JOYBUTTONDOWN || event->type == SDL_JOYBUTTONUP) {
-			if (event->jbutton.button == 12) { // L
-				if (event->jbutton.type == SDL_JOYBUTTONDOWN) {
-					event->jbutton.type = SDL_CONTROLLERBUTTONDOWN;
-					event->jbutton.state = SDL_PRESSED;
-				} else {
-					event->jbutton.type = SDL_CONTROLLERBUTTONUP;
-					event->jbutton.state = SDL_RELEASED;
-				}
-				event->jbutton.button = 17;
-			} else if (event->jbutton.button == 13) { // R
-				if (event->jbutton.type == SDL_JOYBUTTONDOWN) {
-					event->jbutton.type = SDL_CONTROLLERBUTTONDOWN;
-					event->jbutton.state = SDL_PRESSED;
-				} else {
-					event->jbutton.type = SDL_CONTROLLERBUTTONUP;
-					event->jbutton.state = SDL_RELEASED;
-				}
-				event->jbutton.button = 16;
-			}
-		}
-	}
-	return ret;
 }
 
 static so_default_dynlib default_dynlib[] = {
@@ -1186,19 +1085,10 @@ static so_default_dynlib default_dynlib[] = {
 	{ "SDL_GameControllerName", (uintptr_t)&SDL_GameControllerName},
 	{ "SDL_ClearError", (uintptr_t)&SDL_ClearError},
 	{ "rmdir", (uintptr_t)&rmdir_hook},
-	{ "AAssetManager_openDir", (uintptr_t)&AAssetManager_openDir},
-	{ "AAssetDir_getNextFileName", (uintptr_t)&AAssetDir_getNextFileName},
-	{ "AAssetDir_close", (uintptr_t)&AAssetDir_close},
 	{ "rmdir", (uintptr_t)&rmdir_hook},
 	{ "_setjmp", (uintptr_t)&setjmp},
 	{ "_longjmp", (uintptr_t)&longjmp},
 	{ "glFramebufferTexture2D", (uintptr_t)&glFramebufferTexture2D_hook},
-	{ "AAssetManager_open", (uintptr_t)&AAssetManager_open},
-	{ "AAsset_close", (uintptr_t)&AAsset_close},
-	{ "AAssetManager_fromJava", (uintptr_t)&ret1},
-	{ "AAsset_read", (uintptr_t)&AAsset_read},
-	{ "AAsset_seek", (uintptr_t)&AAsset_seek},
-	{ "AAsset_getLength", (uintptr_t)&AAsset_getLength},
 	{ "stdout", (uintptr_t)&fake_stdout },
 	{ "stdin", (uintptr_t)&fake_stdout },
 	{ "stderr", (uintptr_t)&fake_stdout },
@@ -1340,31 +1230,24 @@ static so_default_dynlib default_dynlib[] = {
 	{ "fclose", (uintptr_t)&fclose_hook },
 	{ "fcntl", (uintptr_t)&ret0 },
 	// { "fdopen", (uintptr_t)&fdopen },
-	{ "feof", (uintptr_t)&feof },
-	{ "ferror", (uintptr_t)&ferror },
-	{ "fflush", (uintptr_t)&fflush },
-	{ "fgets", (uintptr_t)&fgets },
+	{ "feof", (uintptr_t)&sceLibcBridge_feof },
+	{ "ferror", (uintptr_t)&sceLibcBridge_ferror },
+	{ "fflush", (uintptr_t)&ret0 },
 	{ "floor", (uintptr_t)&floor },
-	{ "fileno", (uintptr_t)&fileno },
 	{ "floorf", (uintptr_t)&floorf },
 	{ "fmod", (uintptr_t)&fmod },
 	{ "fmodf", (uintptr_t)&fmodf },
 	{ "fopen", (uintptr_t)&fopen_hook },
-	{ "open", (uintptr_t)&open_hook },
-	{ "fprintf", (uintptr_t)&fprintf },
-	{ "fputc", (uintptr_t)&fputc },
-	// { "fputwc", (uintptr_t)&fputwc },
-	{ "fputs", (uintptr_t)&ret0 },
+	{ "fprintf", (uintptr_t)&sceLibcBridge_fprintf },
+	{ "fputc", (uintptr_t)&sceLibcBridge_fputc },
 	{ "fread", (uintptr_t)&fread_hook },
 	{ "free", (uintptr_t)&free },
 	{ "frexp", (uintptr_t)&frexp },
 	{ "frexpf", (uintptr_t)&frexpf },
-	{ "fscanf", (uintptr_t)&fscanf },
 	{ "fseek", (uintptr_t)&fseek_hook },
-	{ "fstat", (uintptr_t)&fstat_hook },
 	{ "ftell", (uintptr_t)&ftell_hook },
 	// { "ftruncate", (uintptr_t)&ftruncate },
-	{ "fwrite", (uintptr_t)&fwrite },
+	{ "fwrite", (uintptr_t)&sceLibcBridge_fwrite },
 	{ "getc", (uintptr_t)&getc },
 	{ "gettid", (uintptr_t)&ret0 },
 	{ "getpid", (uintptr_t)&ret0 },
@@ -1637,7 +1520,7 @@ static so_default_dynlib default_dynlib[] = {
 	{ "SDL_PeepEvents", (uintptr_t)&SDL_PeepEvents },
 	{ "SDL_PumpEvents", (uintptr_t)&SDL_PumpEvents },
 	{ "SDL_PushEvent", (uintptr_t)&SDL_PushEvent },
-	{ "SDL_PollEvent", (uintptr_t)&SDL_PollEvent_hook },
+	{ "SDL_PollEvent", (uintptr_t)&SDL_PollEvent },
 	{ "SDL_QueryTexture", (uintptr_t)&SDL_QueryTexture },
 	{ "SDL_Quit", (uintptr_t)&SDL_Quit },
 	{ "SDL_RemoveTimer", (uintptr_t)&SDL_RemoveTimer },
@@ -2706,10 +2589,10 @@ int main(int argc, char *argv[]) {
 			} \
 		}	
 	
-	FILE *f = fopen("ux0:data/ut99/System/VitaUT99.ini", "rb");
+	FILE *f = sceLibcBridge_fopen("ux0:data/ut99/System/VitaUT99.ini", "rb");
 	char *tmp = malloc(1024 * 1024);
-	fread(tmp, 1, 1024 * 1024, f);
-	fclose(f);
+	sceLibcBridge_fread(tmp, 1, 1024 * 1024, f);
+	sceLibcBridge_fclose(f);
 	char line[32];
 	extractValue(DeadZoneXYZ)
 	extractValue(DeadZoneRUV)
