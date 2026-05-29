@@ -69,6 +69,28 @@ static char data_path[256];
 static char fake_vm[0x1000];
 static char fake_env[0x1000];
 
+enum {
+	SYSTEM_DIR,
+	MAPS_DIR,
+	TEXTURES_DIR,
+	SOUNDS_DIR,
+	MUSIC_DIR,
+	DIRS_NUM
+};
+
+#define DT_DIR 4
+#define DT_REG 8
+
+struct android_dirent {
+	char pad[18];
+	unsigned char d_type;
+	char d_name[256];
+};
+
+struct android_dirent cached_dirs[DIRS_NUM][512];
+size_t cached_entries[DIRS_NUM] = {};
+size_t cached_lists[DIRS_NUM];
+
 int framecap = 0;
 
 int file_exists(const char *path) {
@@ -773,86 +795,35 @@ void *SDL_GL_GetProcAddress_fake(const char *symbol) {
 	return r;
 }
 
-#define SCE_ERRNO_MASK 0xFF
-
-#define DT_DIR 4
-#define DT_REG 8
-
-struct android_dirent {
-	char pad[18];
-	unsigned char d_type;
-	char d_name[256];
-};
-
-typedef struct {
-	SceUID uid;
-	struct android_dirent dir;
-} android_DIR;
-android_DIR _dirp;
-
-int closedir_fake(android_DIR *dirp) {
-	if (!dirp || dirp->uid < 0) {
-		errno = EBADF;
-		return -1;
-	}
-
-	int res = sceIoDclose(dirp->uid);
-	dirp->uid = -1;
-
-	if (res < 0) {
-		errno = res & SCE_ERRNO_MASK;
-		return -1;
-	}
-
-	errno = 0;
-	return 0;
-}
-
-android_DIR *opendir_fake(const char *dirname) {
-	dlog("opendir(%s)\n", dirname);
-	SceUID uid;
-	if (strncmp(dirname, "ux0:", 4)) {
-		char real_fname[256];
-		sprintf(real_fname, "ux0:data/ut99/System/%s", dirname);
-		uid = sceIoDopen(real_fname);
+uint32_t opendir_fake(const char *dirname) {
+	if (dirname[3] == 'C') // Cache
+		return 0;
+	uint32_t ret;
+	if (dirname[1] == '/') {
+		ret = SYSTEM_DIR;
 	} else {
-		uid = sceIoDopen(dirname);
+		uint32_t i = dirname[0] == 'u' ? 24 : 3;
+		switch (dirname[i]) {
+		case 'T':
+			ret = TEXTURES_DIR;
+			break;
+		case 'M':
+			ret = dirname[i + 1] == 'a' ? MAPS_DIR : MUSIC_DIR;
+			break;
+		default:
+			ret = dirname[i + 1] == 'y' ? SYSTEM_DIR : SOUNDS_DIR;
+			break;
+		}
 	}
-	
-	if (uid < 0) {
-		errno = uid & SCE_ERRNO_MASK;
-		return NULL;
-	}
-
-	android_DIR *dirp = &_dirp;
-	dirp->uid = uid;
-
-	errno = 0;
-	return dirp;
+	cached_lists[ret] = 0;
+	return ret;
 }
 
-struct android_dirent *readdir_fake(android_DIR *dirp) {
-	if (!dirp) {
-		errno = EBADF;
-		return NULL;
+struct android_dirent *readdir_fake(uint32_t dirp) {
+	if (cached_lists[dirp] < cached_entries[dirp]) {
+		return &cached_dirs[dirp][cached_lists[dirp]++];
 	}
-
-	SceIoDirent sce_dir;
-	int res = sceIoDread(dirp->uid, &sce_dir);
-
-	if (res < 0) {
-		errno = res & SCE_ERRNO_MASK;
-		return NULL;
-	}
-
-	if (res == 0) {
-		errno = 0;
-		return NULL;
-	}
-
-	dirp->dir.d_type = SCE_S_ISDIR(sce_dir.d_stat.st_mode) ? DT_DIR : DT_REG;
-	strcpy(dirp->dir.d_name, sce_dir.d_name);
-	return &dirp->dir;
+	return NULL;
 }
 
 SDL_Surface *IMG_Load_hook(const char *file) {
@@ -1133,7 +1104,7 @@ static so_default_dynlib default_dynlib[] = {
 	{ "sincosf", (uintptr_t)&sincosf },
 	{ "opendir", (uintptr_t)&opendir_fake },
 	{ "readdir", (uintptr_t)&readdir_fake },
-	{ "closedir", (uintptr_t)&closedir_fake },
+	{ "closedir", (uintptr_t)&ret0 },
 	{ "g_SDL_BufferGeometry_w", (uintptr_t)&g_SDL_BufferGeometry_w },
 	{ "g_SDL_BufferGeometry_h", (uintptr_t)&g_SDL_BufferGeometry_h },
 	{ "__aeabi_ul2f", (uintptr_t)&__aeabi_ul2f },
@@ -2296,8 +2267,8 @@ int TickInput(uint8_t *this) {
 	const float DeltaTime = CurTime - InputUpdateTime;
 	
 	float mouse_delta[2] = {0.f, 0.f};
-	float *mouse_pos = ((float *)this + 15);
 #if 0
+	float *mouse_pos = ((float *)this + 15);
 	this[56] &= ~1; // This seemingly makes the cursor pop back in
 #endif
 
@@ -2551,6 +2522,24 @@ int main(int argc, char *argv[]) {
 	memset(&init_param, 0, sizeof(SceAppUtilInitParam));
 	memset(&boot_param, 0, sizeof(SceAppUtilBootParam));
 	sceAppUtilInit(&init_param, &boot_param);
+	
+	// Cache directory structs
+#define CACHE_DIR(x, i) \
+	{ \
+		SceUID d = sceIoDopen(x); \
+		SceIoDirent sce_dir; \
+		while (sceIoDread(d, &sce_dir) > 0) { \
+			strcpy(cached_dirs[i][cached_entries[i]].d_name, sce_dir.d_name); \
+			cached_dirs[i][cached_entries[i]].d_type = SCE_S_ISDIR(sce_dir.d_stat.st_mode) ? DT_DIR : DT_REG; \
+			cached_entries[i]++; \
+		} \
+		sceIoDclose(d); \
+	}
+	CACHE_DIR("ux0:data/ut99/System", SYSTEM_DIR)
+	CACHE_DIR("ux0:data/ut99/Maps", MAPS_DIR)
+	CACHE_DIR("ux0:data/ut99/Music", MUSIC_DIR)
+	CACHE_DIR("ux0:data/ut99/Sounds", SOUNDS_DIR)
+	CACHE_DIR("ux0:data/ut99/Textures", TEXTURES_DIR)
 	
 	//sceSysmoduleLoadModule(SCE_SYSMODULE_RAZOR_CAPTURE);
 	//SceUID crasher_thread = sceKernelCreateThread("crasher", crasher, 0x40, 0x1000, 0, 0, NULL);
