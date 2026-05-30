@@ -14,7 +14,7 @@ set(VITA_APP_NAME "Unreal Tournament")
 set(VITA_TITLEID  "UNREALT99")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wl,-q,--allow-multiple-definition -D_GNU_SOURCE -Wall -O3 -fdiagnostics-color=always -fno-optimize-sibling-calls -mfloat-abi=softfp -Wno-unused-value")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wl,-q,--allow-multiple-definition -D_GNU_SOURCE -Wall -O3 -fsigned-char -fdiagnostics-color=always -fno-optimize-sibling-calls -mfloat-abi=softfp -Wno-unused-value")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -Wno-write-strings -fpermissive -fno-rtti")
 
 add_executable(ut99

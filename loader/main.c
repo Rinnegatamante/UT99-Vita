@@ -174,8 +174,6 @@ int ret1(void) {
 #define  MUTEX_TYPE_RECURSIVE  0x4000
 #define  MUTEX_TYPE_ERRORCHECK 0x8000
 
-static pthread_t s_pthreadSelfRet;
-
 static void init_static_mutex(pthread_mutex_t **mutex)
 {
 	pthread_mutex_t *mtxMem = NULL;
@@ -894,8 +892,10 @@ size_t __strlen_chk(const char *s, size_t s_len) {
 	return strlen(s);
 }
 
+SDL_Window *sdl_wnd;
 SDL_Window *SDL_CreateWindow_hook(const char *title, int x, int y, int w, int h, Uint32 flags) {
-	return SDL_CreateWindow("hazard", 0, 0, SCREEN_W, SCREEN_H, flags);
+	sdl_wnd = SDL_CreateWindow("UT99", 0, 0, SCREEN_W, SCREEN_H, flags);
+	return sdl_wnd;
 }
 
 uint64_t lseek64(int fd, uint64_t offset, int whence) {
@@ -986,7 +986,6 @@ void glFramebufferTexture2D_hook(GLenum target, GLenum attachment, GLenum textar
 
 int rmdir_hook(const char *pathname) {
 	dlog("rmdir(%s)\n", pathname);
-	SceUID uid;
 	if (strncmp(pathname, "ux0:", 4)) {
 		char real_fname[256];
 		sprintf(real_fname, "ux0:data/ut99/System/%s", pathname);
@@ -1537,8 +1536,8 @@ static so_default_dynlib default_dynlib[] = {
 	{ "SDL_SetTextureColorMod", (uintptr_t)&SDL_SetTextureColorMod },
 	{ "SDL_ShowCursor", (uintptr_t)&SDL_ShowCursor },
 	{ "SDL_ShowSimpleMessageBox", (uintptr_t)&ret0 },
-	{ "SDL_StartTextInput", (uintptr_t)&SDL_StartTextInput },
-	{ "SDL_StopTextInput", (uintptr_t)&SDL_StopTextInput },
+	{ "SDL_StartTextInput", (uintptr_t)&ret0 },
+	{ "SDL_StopTextInput", (uintptr_t)&ret0 },
 	{ "SDL_strdup", (uintptr_t)&SDL_strdup },
 	{ "SDL_UnlockMutex", (uintptr_t)&SDL_UnlockMutex },
 	{ "SDL_UnlockSurface", (uintptr_t)&SDL_UnlockSurface },
@@ -1858,7 +1857,7 @@ char duration[32];
 void *CallObjectMethodV(void *env, void *obj, int methodID, uintptr_t *args) {
 	switch (methodID) {
 	default:
-		return 0x34343434;
+		return (void *)0x34343434;
 	}
 }
 
@@ -1941,7 +1940,6 @@ void appThrowF(const char *fmt, ...) {
 
 	sceClibPrintf("[appThrowF addr: %p] %s\n", __builtin_return_address(0), string);
 #endif
-	return 0;
 }
 
 int (*_CauseInputEvent)(void *this, int key, int action, float delta);
@@ -2232,7 +2230,7 @@ const uint8_t JoyButtonMap[SDL_CONTROLLER_BUTTON_MAX] =
 	/* BUTTON_LEFTSHOULDER  */ IK_RightMouse, // Alt Fire
 	/* BUTTON_RIGHTSHOULDER */ IK_LeftMouse, // Fire
 	/* BUTTON_DPAD_UP       */ IK_Y, // Feign Death
-	/* BUTTON_DPAD_DOWN     */ IK_P, // Weapon Slot 0 (Translator/Hammer)
+	/* BUTTON_DPAD_DOWN     */ IK_Joy6, // Open/Close Text Input
 	/* BUTTON_DPAD_LEFT     */ IK_Q, // Prev Weapon
 	/* BUTTON_DPAD_RIGHT    */ IK_N, // Next Weapon
 };
@@ -2282,8 +2280,18 @@ static inline int get_bInMenu(uint8_t *this) {
 }
 
 void (*MouseDelta)(void *engine, void *vp, uint32_t click_flags, float dx, float dy);
+static uint8_t is_textinput_active = 0;
+int (*InputKey)(char key);
 
 int TickInput(uint8_t *this) {
+	// Detect if sceIme has been closed, if so exit text inputing mode
+	if (is_textinput_active) {
+		if (!SDL_IsScreenKeyboardShown(sdl_wnd)) {
+			SDL_StopTextInput();
+			is_textinput_active = 0;
+		}
+	}
+	
 	const float CurTime = ((float)sceKernelGetProcessTimeLow()) / 1000000.f;
 	const float DeltaTime = CurTime - InputUpdateTime;
 	
@@ -2302,9 +2310,32 @@ int TickInput(uint8_t *this) {
 	while( SDL_PollEvent( &Ev ) ) {
 	switch( Ev.type )
 	{
+	case SDL_KEYDOWN:
+		if (is_textinput_active && Ev.key.keysym.scancode == SDL_SCANCODE_BACKSPACE) {
+			sceClibPrintf("backspace\n");
+			CauseInputEvent(IK_Backspace, IST_Press, 0.f);
+			CauseInputEvent(IK_Backspace, IST_Release, 0.f);
+		}
+		break;
+	case SDL_TEXTINPUT:
+		for( const char *p = Ev.text.text; *p && p < Ev.text.text + sizeof( Ev.text.text ); ++p ) {
+			if ( *p < 0 )
+				break;
+			if( isprint( *p ) || *p == '\r' ) {
+				InputKey(*p);
+			}
+		}
+		break;
 	case SDL_CONTROLLERBUTTONDOWN:
 	case SDL_CONTROLLERBUTTONUP:
-		CauseInputEvent( JoyButtonMap[Ev.cbutton.button], ( Ev.type == SDL_CONTROLLERBUTTONDOWN ) ? IST_Press : IST_Release, 0.f );
+		if (Ev.cbutton.button == 12) {
+			if (Ev.type == SDL_CONTROLLERBUTTONDOWN && !is_textinput_active) {
+				is_textinput_active = 1;
+				SDL_StartTextInput();
+			}
+		} else {
+			CauseInputEvent( JoyButtonMap[Ev.cbutton.button], ( Ev.type == SDL_CONTROLLERBUTTONDOWN ) ? IST_Press : IST_Release, 0.f );
+		}
 		break;
 	case SDL_MOUSEBUTTONDOWN:
 	case SDL_MOUSEBUTTONUP:
@@ -2428,10 +2459,11 @@ void patch_game(void) {
 		fake_fds_pool[i] = &fake_fds[i];
 	}
 	
-	hook_addr(so_symbol(&main_mod, "_Z9appThrowfPKcz"), appThrowF);
-	hook_addr(so_symbol(&main_mod, "_ZN13UNSDLViewport9TickInputEv"), TickInput);
+	hook_addr(so_symbol(&main_mod, "_Z9appThrowfPKcz"), (uintptr_t)appThrowF);
+	hook_addr(so_symbol(&main_mod, "_ZN13UNSDLViewport9TickInputEv"), (uintptr_t)TickInput);
 	_CauseInputEvent = so_symbol(&main_mod, "_ZN13UNSDLViewport15CauseInputEventEi12EInputActionf");
 	MouseDelta = so_symbol(&main_mod, "_ZN11UGameEngine10MouseDeltaEP9UViewportjff");
+	InputKey = main_mod.text_base + 0x1D4F38;
 }
 
 void *pthread_main(void *arg) {
@@ -2564,6 +2596,7 @@ int main(int argc, char *argv[]) {
 		eglSwapInterval(NULL, 2);
 	}
 	
+	sceSysmoduleLoadModule(SCE_SYSMODULE_IME);
 	//sceSysmoduleLoadModule(SCE_SYSMODULE_RAZOR_CAPTURE);
 	//SceUID crasher_thread = sceKernelCreateThread("crasher", crasher, 0x40, 0x1000, 0, 0, NULL);
 	//sceKernelStartThread(crasher_thread, 0, NULL);	
