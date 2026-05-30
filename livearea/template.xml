@@ -8,4 +8,13 @@
     <gate>
         <startup-image>startup.png</startup-image>
     </gate>
+	
+	<frame id="frame4" >
+        <liveitem>
+            <target>psla:framecap</target>
+			<text valign="bottom" align="left" text-align="left" word-wrap="off" ellipsis="on">
+				<str size="20" color="#ffffff" shadow="on"> Start with 30 FPS cap</str>
+			</text>
+        </liveitem>
+    </frame>
 </livearea>

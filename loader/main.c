@@ -2523,6 +2523,12 @@ int main(int argc, char *argv[]) {
 	memset(&boot_param, 0, sizeof(SceAppUtilBootParam));
 	sceAppUtilInit(&init_param, &boot_param);
 	
+	SceAppUtilAppEventParam eventParam;
+	memset(&eventParam, 0, sizeof(SceAppUtilAppEventParam));
+	sceAppUtilReceiveAppEvent(&eventParam);
+	if (eventParam.type == 0x05) {
+		eglSwapInterval(NULL, 2);
+	}
 	// Cache directory structs
 #define CACHE_DIR(x, i) \
 	{ \
