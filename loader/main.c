@@ -2608,7 +2608,7 @@ int main(int argc, char *argv[]) {
 	scePowerSetGpuClockFrequency(222);
 	scePowerSetGpuXbarClockFrequency(166);
 	
-	if (1) {//if (file_exists(to_purge_files[0]) {
+	if (file_exists(to_purge_files[0])) {
 		// Purge useless files
 		for (int i = 0; i < sizeof(to_purge_files) / sizeof(*to_purge_files); i++) {
 			sceIoRemove(to_purge_files[i]);
