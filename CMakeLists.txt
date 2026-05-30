@@ -23,6 +23,7 @@ add_executable(ut99
   loader/so_util.c
   loader/sha1.c
   loader/ctype_patch.c
+  loader/filecache.cpp
 )
 
 target_link_libraries(ut99

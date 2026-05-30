@@ -52,6 +52,13 @@
 #include "vorbis/vorbisfile.h"
 #include "libc_bridge.h"
 
+#define XXH_STATIC_LINKING_ONLY
+#define XXH_IMPLEMENTATION
+#define XXH_NAMESPACE UT99_
+#define XXH_memcpy sceClibMemcpy
+#define XXH_memset sceClibMemset
+#include "xxhash_utils.h"
+
 //#define ENABLE_DEBUG
 
 #ifdef ENABLE_DEBUG
@@ -85,6 +92,7 @@ struct android_dirent {
 	char pad[18];
 	unsigned char d_type;
 	char d_name[256];
+	char fullpath[256];
 };
 
 struct android_dirent cached_dirs[DIRS_NUM][512];
@@ -175,21 +183,21 @@ static void init_static_mutex(pthread_mutex_t **mutex)
 	switch ((int)*mutex) {
 	case MUTEX_TYPE_NORMAL: {
 		pthread_mutex_t initTmpNormal = PTHREAD_MUTEX_INITIALIZER;
-		mtxMem = calloc(1, sizeof(pthread_mutex_t));
+		mtxMem = vglCalloc(1, sizeof(pthread_mutex_t));
 		sceClibMemcpy(mtxMem, &initTmpNormal, sizeof(pthread_mutex_t));
 		*mutex = mtxMem;
 		break;
 	}
 	case MUTEX_TYPE_RECURSIVE: {
 		pthread_mutex_t initTmpRec = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
-		mtxMem = calloc(1, sizeof(pthread_mutex_t));
+		mtxMem = vglCalloc(1, sizeof(pthread_mutex_t));
 		sceClibMemcpy(mtxMem, &initTmpRec, sizeof(pthread_mutex_t));
 		*mutex = mtxMem;
 		break;
 	}
 	case MUTEX_TYPE_ERRORCHECK: {
 		pthread_mutex_t initTmpErr = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER;
-		mtxMem = calloc(1, sizeof(pthread_mutex_t));
+		mtxMem = vglCalloc(1, sizeof(pthread_mutex_t));
 		sceClibMemcpy(mtxMem, &initTmpErr, sizeof(pthread_mutex_t));
 		*mutex = mtxMem;
 		break;
@@ -203,7 +211,7 @@ static void init_static_cond(pthread_cond_t **cond)
 {
 	if (*cond == NULL) {
 		pthread_cond_t initTmp = PTHREAD_COND_INITIALIZER;
-		pthread_cond_t *condMem = calloc(1, sizeof(pthread_cond_t));
+		pthread_cond_t *condMem = vglCalloc(1, sizeof(pthread_cond_t));
 		sceClibMemcpy(condMem, &initTmp, sizeof(pthread_cond_t));
 		*cond = condMem;
 	}
@@ -212,7 +220,7 @@ static void init_static_cond(pthread_cond_t **cond)
 int pthread_attr_destroy_soloader(pthread_attr_t **attr)
 {
 	int ret = pthread_attr_destroy(*attr);
-	free(*attr);
+	vglFree(*attr);
 	return ret;
 }
 
@@ -225,7 +233,7 @@ int pthread_attr_getstack_soloader(const pthread_attr_t **attr,
 
 __attribute__((unused)) int pthread_condattr_init_soloader(pthread_condattr_t **attr)
 {
-	*attr = calloc(1, sizeof(pthread_condattr_t));
+	*attr = vglCalloc(1, sizeof(pthread_condattr_t));
 
 	return pthread_condattr_init(*attr);
 }
@@ -233,14 +241,14 @@ __attribute__((unused)) int pthread_condattr_init_soloader(pthread_condattr_t **
 __attribute__((unused)) int pthread_condattr_destroy_soloader(pthread_condattr_t **attr)
 {
 	int ret = pthread_condattr_destroy(*attr);
-	free(*attr);
+	vglFree(*attr);
 	return ret;
 }
 
 int pthread_cond_init_soloader(pthread_cond_t **cond,
 				   const pthread_condattr_t **attr)
 {
-	*cond = calloc(1, sizeof(pthread_cond_t));
+	*cond = vglCalloc(1, sizeof(pthread_cond_t));
 
 	if (attr != NULL)
 		return pthread_cond_init(*cond, *attr);
@@ -251,7 +259,7 @@ int pthread_cond_init_soloader(pthread_cond_t **cond,
 int pthread_cond_destroy_soloader(pthread_cond_t **cond)
 {
 	int ret = pthread_cond_destroy(*cond);
-	free(*cond);
+	vglFree(*cond);
 	return ret;
 }
 
@@ -275,7 +283,7 @@ int pthread_create_soloader(pthread_t **thread,
 				void *(*start)(void *),
 				void *param)
 {
-	*thread = calloc(1, sizeof(pthread_t));
+	*thread = vglCalloc(1, sizeof(pthread_t));
 
 	if (attr != NULL) {
 		pthread_attr_setstacksize(*attr, 512 * 1024);
@@ -291,7 +299,7 @@ int pthread_create_soloader(pthread_t **thread,
 
 int pthread_mutexattr_init_soloader(pthread_mutexattr_t **attr)
 {
-	*attr = calloc(1, sizeof(pthread_mutexattr_t));
+	*attr = vglCalloc(1, sizeof(pthread_mutexattr_t));
 
 	return pthread_mutexattr_init(*attr);
 }
@@ -309,21 +317,21 @@ int pthread_mutexattr_setpshared_soloader(pthread_mutexattr_t **attr, int pshare
 int pthread_mutexattr_destroy_soloader(pthread_mutexattr_t **attr)
 {
 	int ret = pthread_mutexattr_destroy(*attr);
-	free(*attr);
+	vglFree(*attr);
 	return ret;
 }
 
 int pthread_mutex_destroy_soloader(pthread_mutex_t **mutex)
 {
 	int ret = pthread_mutex_destroy(*mutex);
-	free(*mutex);
+	vglFree(*mutex);
 	return ret;
 }
 
 int pthread_mutex_init_soloader(pthread_mutex_t **mutex,
 				const pthread_mutexattr_t **attr)
 {
-	*mutex = calloc(1, sizeof(pthread_mutex_t));
+	*mutex = vglCalloc(1, sizeof(pthread_mutex_t));
 
 	if (attr != NULL)
 		return pthread_mutex_init(*mutex, *attr);
@@ -365,7 +373,7 @@ int pthread_cond_broadcast_soloader(pthread_cond_t **cond)
 
 int pthread_attr_init_soloader(pthread_attr_t **attr)
 {
-	*attr = calloc(1, sizeof(pthread_attr_t));
+	*attr = vglCalloc(1, sizeof(pthread_attr_t));
 
 	return pthread_attr_init(*attr);
 }
@@ -495,8 +503,19 @@ fake_fd *fake_fds_pool[FDS_ARRAY_SIZE];
 
 //#define DEBUG_FOPEN
 
+FILE *cache_lookup(uint64_t hash);
+void cache_insert(uint64_t hash, const char *fname);
+
 FILE *fopen_hook(char *fname, char *mode) {
-	FILE *f;
+	FILE *f = NULL;
+	if (mode[0] == 'r') {
+		uint64_t hash = XXH3_64bits(fname, strlen(fname));
+		f = cache_lookup(hash);
+	}
+	if (f) {
+		goto FOUND_FILE;
+	}
+
 	char real_fname[256];
 	dlog("fopen(%s,%s)\n", fname, mode);
 	if (!strncmp(fname, "../Textures/Package", 19)) {
@@ -511,6 +530,7 @@ FILE *fopen_hook(char *fname, char *mode) {
 		return NULL; // This is done only to open log file, we don't care about it
 	}
 	if (mode[0] == 'r' && f) {
+FOUND_FILE: {
 		fake_fd *fd = fake_fds_pool[grab_idx];
 		grab_idx = (grab_idx + 1) % FDS_ARRAY_SIZE;
 		fd->magic = 0xBADDBADD;
@@ -527,6 +547,7 @@ FILE *fopen_hook(char *fname, char *mode) {
 		sceLibcBridge_fclose(f);
 #endif
 		return (FILE *)fd;
+}
 	}
 	return f;
 }
@@ -658,7 +679,7 @@ int lstat_hook(const char *pathname, stat64_bionic *statbuf) {
 	}
 	if (res == 0) {
 		if (!statbuf) {
-			statbuf = malloc(sizeof(stat64_bionic));
+			statbuf = vglMalloc(sizeof(stat64_bionic));
 		}
 		statbuf->st_dev = st.st_dev;
 		statbuf->st_ino = st.st_ino;
@@ -694,7 +715,7 @@ int stat_hook(const char *pathname, stat64_bionic *statbuf) {
 	}
 	if (res == 0) {
 		if (!statbuf) {
-			statbuf = malloc(sizeof(stat64_bionic));
+			statbuf = vglMalloc(sizeof(stat64_bionic));
 		}
 		statbuf->st_dev = st.st_dev;
 		statbuf->st_ino = st.st_ino;
@@ -882,7 +903,7 @@ uint64_t lseek64(int fd, uint64_t offset, int whence) {
 }
 
 char *SDL_GetBasePath_hook() {
-	void *ret = malloc(256);
+	void *ret = vglMalloc(256);
 	sprintf(ret, "%s/", data_path);
 	dlog("SDL_GetBasePath\n");
 	return ret;
@@ -1174,7 +1195,7 @@ static so_default_dynlib default_dynlib[] = {
 	{ "bsd_signal", (uintptr_t)&ret0 },
 	{ "bsearch", (uintptr_t)&bsearch },
 	{ "btowc", (uintptr_t)&btowc },
-	{ "calloc", (uintptr_t)&calloc },
+	{ "calloc", (uintptr_t)&vglCalloc },
 	{ "ceil", (uintptr_t)&ceil },
 	{ "ceilf", (uintptr_t)&ceilf },
 	{ "chdir", (uintptr_t)&chdir_hook },
@@ -1212,7 +1233,7 @@ static so_default_dynlib default_dynlib[] = {
 	{ "fprintf", (uintptr_t)&sceLibcBridge_fprintf },
 	{ "fputc", (uintptr_t)&sceLibcBridge_fputc },
 	{ "fread", (uintptr_t)&fread_hook },
-	{ "free", (uintptr_t)&free },
+	{ "free", (uintptr_t)&vglFree },
 	{ "frexp", (uintptr_t)&frexp },
 	{ "frexpf", (uintptr_t)&frexpf },
 	{ "fseek", (uintptr_t)&fseek_hook },
@@ -1269,9 +1290,9 @@ static so_default_dynlib default_dynlib[] = {
 	{ "lrintf", (uintptr_t)&lrintf },
 	{ "lseek", (uintptr_t)&lseek },
 	{ "lseek64", (uintptr_t)&lseek64 },
-	{ "malloc", (uintptr_t)&malloc },
+	{ "malloc", (uintptr_t)&vglMalloc },
 	{ "mbrtowc", (uintptr_t)&mbrtowc },
-	{ "memalign", (uintptr_t)&memalign },
+	{ "memalign", (uintptr_t)&vglMemalign },
 	{ "memchr", (uintptr_t)&sceClibMemchr },
 	{ "memcmp", (uintptr_t)&memcmp },
 	{ "memcpy", (uintptr_t)&sceClibMemcpy },
@@ -1332,7 +1353,7 @@ static so_default_dynlib default_dynlib[] = {
 	{ "rand", (uintptr_t)&rand },
 	{ "read", (uintptr_t)&read },
 	{ "realpath", (uintptr_t)&realpath },
-	{ "realloc", (uintptr_t)&realloc },
+	{ "realloc", (uintptr_t)&vglRealloc },
 	// { "recv", (uintptr_t)&recv },
 	{ "roundf", (uintptr_t)&roundf },
 	{ "rint", (uintptr_t)&rint },
@@ -2428,7 +2449,7 @@ void *pthread_main(void *arg) {
 	sceClibPrintf("Entering main loop\n");
 	char *args[] = {
         "",
-        "CityIntro.unr",
+        "CityIntro",
         "LOG=UT99Vita.log",
         "INI=VitaUT99.ini",
         "USERINI=VitaUser.ini"
@@ -2438,7 +2459,7 @@ void *pthread_main(void *arg) {
 }
 
 // List of files that can be removed since not used, saves space and reduces I/O overhead
-static char *to_purge_files[] = {
+static const char *to_purge_files[] = {
 	"ux0:data/ut99/System/UNREALTOURNAMENT.EXE",
 	"ux0:data/ut99/System/Core.dll",
 	"ux0:data/ut99/System/D3DDrv.dll",
@@ -2516,6 +2537,19 @@ static char *to_purge_files[] = {
 	"ux0:data/ut99/System/UnrealTournament.ini",
 };
 
+// Files that need case sensitiveness fixes
+static const char *to_case_fix[] = {
+	"ux0:data/ut99/Textures/hubeffects.utx",
+	"ux0:data/ut99/Textures/uttech2.utx",
+	"ux0:data/ut99/Textures/genfluid.utx",
+	"ux0:data/ut99/Textures/utcrypt.utx",
+	"ux0:data/ut99/System/Botpack.u",
+	"ux0:data/ut99/Maps/CityIntro.unr",
+	"ux0:data/ut99/Textures/Skybox.utx",
+	"ux0:data/ut99/Textures/shaneDAY.utx",
+	"ux0:data/ut99/Textures/CommandoSkins.utx",
+};
+
 int main(int argc, char *argv[]) {
 	SceAppUtilInitParam init_param;
 	SceAppUtilBootParam boot_param;
@@ -2529,23 +2563,6 @@ int main(int argc, char *argv[]) {
 	if (eventParam.type == 0x05) {
 		eglSwapInterval(NULL, 2);
 	}
-	// Cache directory structs
-#define CACHE_DIR(x, i) \
-	{ \
-		SceUID d = sceIoDopen(x); \
-		SceIoDirent sce_dir; \
-		while (sceIoDread(d, &sce_dir) > 0) { \
-			strcpy(cached_dirs[i][cached_entries[i]].d_name, sce_dir.d_name); \
-			cached_dirs[i][cached_entries[i]].d_type = SCE_S_ISDIR(sce_dir.d_stat.st_mode) ? DT_DIR : DT_REG; \
-			cached_entries[i]++; \
-		} \
-		sceIoDclose(d); \
-	}
-	CACHE_DIR("ux0:data/ut99/System", SYSTEM_DIR)
-	CACHE_DIR("ux0:data/ut99/Maps", MAPS_DIR)
-	CACHE_DIR("ux0:data/ut99/Music", MUSIC_DIR)
-	CACHE_DIR("ux0:data/ut99/Sounds", SOUNDS_DIR)
-	CACHE_DIR("ux0:data/ut99/Textures", TEXTURES_DIR)
 	
 	//sceSysmoduleLoadModule(SCE_SYSMODULE_RAZOR_CAPTURE);
 	//SceUID crasher_thread = sceKernelCreateThread("crasher", crasher, 0x40, 0x1000, 0, 0, NULL);
@@ -2559,9 +2576,43 @@ int main(int argc, char *argv[]) {
 	scePowerSetGpuClockFrequency(222);
 	scePowerSetGpuXbarClockFrequency(166);
 	
-	for (int i = 0; i < sizeof(to_purge_files) / sizeof(*to_purge_files); i++) {
-		sceIoRemove(to_purge_files[i]);
+	if (1) {//if (file_exists(to_purge_files[0]) {
+		// Purge useless files
+		for (int i = 0; i < sizeof(to_purge_files) / sizeof(*to_purge_files); i++) {
+			sceIoRemove(to_purge_files[i]);
+		}
+		
+		// Rename files to prevent case mismatches and subsequent cache misses
+		for (int i = 0; i < sizeof(to_case_fix) / sizeof(*to_case_fix); i++) {
+			sceIoRename(to_case_fix[i], "ux0:data/t.u");
+			sceIoRename("ux0:data/t.u", to_case_fix[i]);
+		}
 	}
+	
+	// Cache directory structs
+	#define CACHE_DIR(x, i) \
+	{ \
+		SceUID d = sceIoDopen(x); \
+		SceIoDirent sce_dir; \
+		while (sceIoDread(d, &sce_dir) > 0) { \
+			sprintf(cached_dirs[i][cached_entries[i]].fullpath, "%s/%s", x, sce_dir.d_name); \
+			strcpy(cached_dirs[i][cached_entries[i]].d_name, sce_dir.d_name); \
+			cached_dirs[i][cached_entries[i]].d_type = SCE_S_ISDIR(sce_dir.d_stat.st_mode) ? DT_DIR : DT_REG; \
+			char * s = strstr(sce_dir.d_name, "."); \
+			if (s && s[1] == 'u') { \
+				s[0] = 0; \
+				uint64_t hash = XXH3_64bits(sce_dir.d_name, s - sce_dir.d_name); \
+				cache_insert(hash, cached_dirs[i][cached_entries[i]].fullpath); \
+			} \
+			cached_entries[i]++; \
+		} \
+		sceIoDclose(d); \
+	}
+	CACHE_DIR("ux0:data/ut99/System", SYSTEM_DIR)
+	CACHE_DIR("ux0:data/ut99/Maps", MAPS_DIR)
+	CACHE_DIR("ux0:data/ut99/Music", MUSIC_DIR)
+	CACHE_DIR("ux0:data/ut99/Sounds", SOUNDS_DIR)
+	CACHE_DIR("ux0:data/ut99/Textures", TEXTURES_DIR)
 	
 	#define extractValue(val) \
 		{ \
@@ -2585,7 +2636,7 @@ int main(int argc, char *argv[]) {
 		}	
 	
 	FILE *f = sceLibcBridge_fopen("ux0:data/ut99/System/VitaUT99.ini", "rb");
-	char *tmp = malloc(1024 * 1024);
+	char *tmp = vglMalloc(1024 * 1024);
 	sceLibcBridge_fread(tmp, 1, 1024 * 1024, f);
 	sceLibcBridge_fclose(f);
 	char line[32];
@@ -2596,7 +2647,7 @@ int main(int argc, char *argv[]) {
 	extractBoolValue(InvertY)
 	extractBoolValue(InvertV)
 	extractBoolValue(UseJoystick)
-	free(tmp);
+	vglFree(tmp);
 	
 	if (UseJoystick) {
 		sceMotionReset();
