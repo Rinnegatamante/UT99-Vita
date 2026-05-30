@@ -2312,7 +2312,6 @@ int TickInput(uint8_t *this) {
 	{
 	case SDL_KEYDOWN:
 		if (is_textinput_active && Ev.key.keysym.scancode == SDL_SCANCODE_BACKSPACE) {
-			sceClibPrintf("backspace\n");
 			CauseInputEvent(IK_Backspace, IST_Press, 0.f);
 			CauseInputEvent(IK_Backspace, IST_Release, 0.f);
 		}

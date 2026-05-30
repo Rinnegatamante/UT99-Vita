@@ -25,7 +25,7 @@ By doing so, it's basically as if we emulate a minimalist Android environment in
 - Left Arrow: Equip previous weapon
 - Right Arrow: Equip next weapon
 - Up Arrow: Feign Death
-- Down Arrow: Equip Slot 0 weapon (Impact Hammer/Traslator)
+- Down Arrow: Open keyboard for text inputing
 - Start: Pause
 - Select: Show Score
 
@@ -46,7 +46,15 @@ FinalAimDelta = ((ScaleXYZ * GyroDelta) + RightAnalogDelta) * ScaleRUV
 
 ## Changelog
 
-### v0.5
+### v.0.6
+
+- Added directory listing and file lookup caching: this reduces loading times across the whole game.
+- Moved to SceLibc usage for I/O. This greatly improves loading times, especially during game boot. (Combined with the previous change, boot time went from 105 seconds to 41 seconds).
+- Added the possibility to open the virtual keyboard for text inputing with Down Arrow.
+- Moved to vitaGL memory allocators: this should make the game less prone to run out of memory when cycling through maps in the map selector.
+- Added a Livearea option to launch the game with a 30 FPS framecap.
+
+### v.0.5
 
 - Initial Release.
 
