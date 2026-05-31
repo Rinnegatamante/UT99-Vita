@@ -10,7 +10,11 @@
 
 #endif
 
-#define USE_SCELIBC_BRIDGE
+// UT99 Loader Options
+#define USE_SCELIBC_BRIDGE // Use SceLibcBridge for I/O
+#define USE_VGL_ALLOCATORS // Use vitaGL memory allocators
+#define HAVE_FILEPATH_CACHE // Enable caching for filepaths
+
 #ifndef USE_SCELIBC_BRIDGE
 #define sceLibcBridge_fopen fopen
 #define sceLibcBridge_fseek fseek
@@ -24,7 +28,6 @@
 #define sceLibcBridge_ferror ferror
 #endif
 
-#define USE_VGL_ALLOCATORS
 #ifndef USE_VGL_ALLOCATORS
 #define vglMalloc malloc
 #define vglFree free

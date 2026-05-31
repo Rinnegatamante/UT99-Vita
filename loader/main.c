@@ -95,6 +95,14 @@ struct android_dirent {
 	char fullpath[256];
 };
 
+#ifndef HAVE_FILEPATH_CACHE
+typedef struct {
+	SceUID uid;
+	struct android_dirent dir;
+} android_DIR;
+android_DIR _dirp;
+#endif
+
 struct android_dirent cached_dirs[DIRS_NUM][512];
 size_t cached_entries[DIRS_NUM] = {};
 size_t cached_lists[DIRS_NUM];
@@ -501,6 +509,7 @@ void cache_insert(uint64_t hash, const char *fname);
 
 FILE *fopen_hook(char *fname, char *mode) {
 	FILE *f = NULL;
+#ifdef HAVE_FILEPATH_CACHE
 	if (mode[0] == 'r') {
 		uint64_t hash = XXH3_64bits(fname, strlen(fname));
 		f = cache_lookup(hash);
@@ -508,7 +517,7 @@ FILE *fopen_hook(char *fname, char *mode) {
 	if (f) {
 		goto FOUND_FILE;
 	}
-
+#endif
 	char real_fname[256];
 	dlog("fopen(%s,%s)\n", fname, mode);
 	if (!strncmp(fname, "../Textures/Package", 19)) {
@@ -520,7 +529,7 @@ FILE *fopen_hook(char *fname, char *mode) {
 		dlog("fopen(%s,%s) patched\n", real_fname, mode);
 		f = sceLibcBridge_fopen(real_fname, mode);
 	} else {
-		return NULL; // This is done only to open log file, we don't care about it
+		f = sceLibcBridge_fopen(fname, mode);
 	}
 	if (mode[0] == 'r' && f) {
 FOUND_FILE: {
@@ -786,8 +795,6 @@ int ret99() {
 	return 99;
 }
 
-}
-
 static so_default_dynlib gl_hook[] = {
 	{"glPixelStorei", (uintptr_t)&ret0},
 };
@@ -808,6 +815,8 @@ void *SDL_GL_GetProcAddress_fake(const char *symbol) {
 }
 
 uint32_t opendir_fake(const char *dirname) {
+	dlog("opendir(%s)\n", dirname);
+#ifdef HAVE_FILEPATH_CACHE
 	if (dirname[3] == 'C') // Cache
 		return 0;
 	uint32_t ret;
@@ -829,14 +838,80 @@ uint32_t opendir_fake(const char *dirname) {
 	}
 	cached_lists[ret] = 0;
 	return ret;
+#else
+	SceUID uid;
+	if (strncmp(dirname, "ux0:", 4)) {
+		char real_fname[256];
+		sprintf(real_fname, "ux0:data/ut99/System/%s", dirname);
+		uid = sceIoDopen(real_fname);
+	} else {
+		uid = sceIoDopen(dirname);
+	}
+	
+	if (uid < 0) {
+		errno = uid & 0xFF;
+		return 0;
+	}
+
+	android_DIR *dirp = &_dirp;
+	dirp->uid = uid;
+
+	errno = 0;
+	return (uint32_t)dirp;
+#endif
 }
 
 struct android_dirent *readdir_fake(uint32_t dirp) {
+#ifdef HAVE_FILEPATH_CACHE
 	if (cached_lists[dirp] < cached_entries[dirp]) {
 		return &cached_dirs[dirp][cached_lists[dirp]++];
 	}
 	return NULL;
+#else
+	android_DIR *__dirp = (android_DIR *)dirp;
+	if (!__dirp) {
+		errno = EBADF;
+		return NULL;
+	}
+
+	SceIoDirent sce_dir;
+	int res = sceIoDread(__dirp->uid, &sce_dir);
+
+	if (res < 0) {
+		errno = res & 0xFF;
+		return NULL;
+	}
+
+	if (res == 0) {
+		errno = 0;
+		return NULL;
+	}
+
+	__dirp->dir.d_type = SCE_S_ISDIR(sce_dir.d_stat.st_mode) ? DT_DIR : DT_REG;
+	strcpy(__dirp->dir.d_name, sce_dir.d_name);
+	return &__dirp->dir;
+#endif
 }
+
+#ifndef HAVE_FILEPATH_CACHE
+int closedir_fake(android_DIR *dirp) {
+	if (!dirp || dirp->uid < 0) {
+		errno = EBADF;
+		return -1;
+	}
+
+	int res = sceIoDclose(dirp->uid);
+	dirp->uid = -1;
+
+	if (res < 0) {
+		errno = res & 0xFF;
+		return -1;
+	}
+
+	errno = 0;
+	return 0;
+}
+#endif
 
 SDL_Surface *IMG_Load_hook(const char *file) {
 	char real_fname[256];
@@ -1117,7 +1192,11 @@ static so_default_dynlib default_dynlib[] = {
 	{ "sincosf", (uintptr_t)&sincosf },
 	{ "opendir", (uintptr_t)&opendir_fake },
 	{ "readdir", (uintptr_t)&readdir_fake },
+#ifdef HAVE_FILEPATH_CACHE
 	{ "closedir", (uintptr_t)&ret0 },
+#else
+	{ "closedir", (uintptr_t)&closedir_fake },	
+#endif
 	{ "g_SDL_BufferGeometry_w", (uintptr_t)&g_SDL_BufferGeometry_w },
 	{ "g_SDL_BufferGeometry_h", (uintptr_t)&g_SDL_BufferGeometry_h },
 	{ "__aeabi_ul2f", (uintptr_t)&__aeabi_ul2f },
@@ -2447,6 +2526,7 @@ void patch_game(void) {
 		fake_fds_pool[i] = &fake_fds[i];
 	}
 	
+	
 	hook_addr(so_symbol(&main_mod, "_Z9appThrowfPKcz"), (uintptr_t)appThrowF);
 	hook_addr(so_symbol(&main_mod, "_ZN13UNSDLViewport9TickInputEv"), (uintptr_t)TickInput);
 	_CauseInputEvent = so_symbol(&main_mod, "_ZN13UNSDLViewport15CauseInputEventEi12EInputActionf");
@@ -2609,7 +2689,8 @@ int main(int argc, char *argv[]) {
 			sceIoRename("ux0:data/t.u", to_case_fix[i]);
 		}
 	}
-	
+
+#ifdef HAVE_FILEPATH_CACHE	
 	// Cache directory structs
 	#define CACHE_DIR(x, i) \
 	{ \
@@ -2634,6 +2715,7 @@ int main(int argc, char *argv[]) {
 	CACHE_DIR("ux0:data/ut99/Music", MUSIC_DIR)
 	CACHE_DIR("ux0:data/ut99/Sounds", SOUNDS_DIR)
 	CACHE_DIR("ux0:data/ut99/Textures", TEXTURES_DIR)
+#endif
 	
 	#define extractValue(val) \
 		{ \

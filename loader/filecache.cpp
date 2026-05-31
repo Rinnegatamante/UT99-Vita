@@ -2,6 +2,7 @@
 #include "robin_hood.h"
 #include "config.h"
 
+#ifdef HAVE_FILEPATH_CACHE
 robin_hood::unordered_map<uint64_t, const char *> filecache;
 
 extern "C" {
@@ -22,3 +23,4 @@ void cache_insert(uint64_t hash, const char *fname) {
 }
 
 }
+#endif
