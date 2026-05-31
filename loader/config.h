@@ -1,8 +1,6 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
-//#define ENABLE_DEBUG
-
 #define LOAD_ADDRESS 0x98000000
 
 #define SCREEN_W 960
@@ -14,6 +12,7 @@
 #define USE_SCELIBC_BRIDGE // Use SceLibcBridge for I/O
 #define USE_VGL_ALLOCATORS // Use vitaGL memory allocators
 #define HAVE_FILEPATH_CACHE // Enable caching for filepaths
+//#define ENABLE_DEBUG // Enable debug logging via sceClibPrintf
 
 #ifndef USE_SCELIBC_BRIDGE
 #define sceLibcBridge_fopen fopen

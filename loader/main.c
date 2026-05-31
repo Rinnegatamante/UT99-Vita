@@ -54,12 +54,14 @@
 #include "libc_bridge.h"
 #endif
 
+#ifdef HAVE_FILEPATH_CACHE
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_IMPLEMENTATION
 #define XXH_NAMESPACE UT99_
 #define XXH_memcpy sceClibMemcpy
 #define XXH_memset sceClibMemset
 #include "xxhash_utils.h"
+#endif
 
 #ifdef ENABLE_DEBUG
 #define dlog sceClibPrintf
@@ -92,7 +94,9 @@ struct android_dirent {
 	char pad[18];
 	unsigned char d_type;
 	char d_name[256];
+#ifdef HAVE_FILEPATH_CACHE
 	char fullpath[256];
+#endif
 };
 
 #ifndef HAVE_FILEPATH_CACHE
@@ -101,11 +105,11 @@ typedef struct {
 	struct android_dirent dir;
 } android_DIR;
 android_DIR _dirp;
-#endif
-
+#else
 struct android_dirent cached_dirs[DIRS_NUM][512];
 size_t cached_entries[DIRS_NUM] = {};
 size_t cached_lists[DIRS_NUM];
+#endif
 
 int framecap = 0;
 
@@ -513,9 +517,9 @@ FILE *fopen_hook(char *fname, char *mode) {
 	if (mode[0] == 'r') {
 		uint64_t hash = XXH3_64bits(fname, strlen(fname));
 		f = cache_lookup(hash);
-	}
-	if (f) {
-		goto FOUND_FILE;
+		if (f) {
+			goto FOUND_FILE;
+		}
 	}
 #endif
 	char real_fname[256];
@@ -739,15 +743,6 @@ int stat_hook(const char *pathname, stat64_bionic *statbuf) {
 	return res;
 }
 
-void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
-	return memalign(length, 0x1000);
-}
-
-int munmap(void *addr, size_t length) {
-	free(addr);
-	return 0;
-}
-
 extern void *__cxa_guard_acquire;
 extern void *__cxa_guard_release;
 
@@ -815,7 +810,6 @@ void *SDL_GL_GetProcAddress_fake(const char *symbol) {
 }
 
 uint32_t opendir_fake(const char *dirname) {
-	dlog("opendir(%s)\n", dirname);
 #ifdef HAVE_FILEPATH_CACHE
 	if (dirname[3] == 'C') // Cache
 		return 0;
@@ -836,9 +830,11 @@ uint32_t opendir_fake(const char *dirname) {
 			break;
 		}
 	}
+	dlog("opendir(%s) -> %d\n", dirname, ret);
 	cached_lists[ret] = 0;
-	return ret;
+	return ret + 1;
 #else
+	dlog("opendir(%s)\n", dirname);
 	SceUID uid;
 	if (strncmp(dirname, "ux0:", 4)) {
 		char real_fname[256];
@@ -863,6 +859,7 @@ uint32_t opendir_fake(const char *dirname) {
 
 struct android_dirent *readdir_fake(uint32_t dirp) {
 #ifdef HAVE_FILEPATH_CACHE
+	dirp--;
 	if (cached_lists[dirp] < cached_entries[dirp]) {
 		return &cached_dirs[dirp][cached_lists[dirp]++];
 	}
@@ -1369,8 +1366,6 @@ static so_default_dynlib default_dynlib[] = {
 	{ "memmove", (uintptr_t)&memmove },
 	{ "memset", (uintptr_t)&sceClibMemset },
 	{ "mkdir", (uintptr_t)&mkdir_hook },
-	// { "mmap", (uintptr_t)&mmap},
-	// { "munmap", (uintptr_t)&munmap},
 	{ "modf", (uintptr_t)&modf },
 	{ "modff", (uintptr_t)&modff },
 	// { "poll", (uintptr_t)&poll },
