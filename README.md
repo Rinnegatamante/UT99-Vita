@@ -46,6 +46,12 @@ FinalAimDelta = ((ScaleXYZ * GyroDelta) + RightAnalogDelta) * ScaleRUV
 
 ## Changelog
 
+### v.0.6.1
+
+- Fixed a bug causing the directory listing cache to fail with System folder, resulting in crashes accessing some game menus.
+- Added extension-full files in the file cache. This will sped up loading times further. (Boot times now down from 41 seconds to 40 seconds)
+- Fully disabled debug file logging at engine level.
+
 ### v.0.6
 
 - Added directory listing and file lookup caching: this reduces loading times across the whole game.
