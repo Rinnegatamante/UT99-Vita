@@ -2527,6 +2527,8 @@ void patch_game(void) {
 	}
 	
 	
+	hook_addr(so_symbol(&main_mod, "_ZN13FOutputDevice4LogfE5ENamePKcz"), (uintptr_t)ret0);
+	hook_addr(so_symbol(&main_mod, "_ZN17FOutputDeviceFile9SerializeEPKc5EName"), (uintptr_t)ret0);
 	hook_addr(so_symbol(&main_mod, "_Z9appThrowfPKcz"), (uintptr_t)appThrowF);
 	hook_addr(so_symbol(&main_mod, "_ZN13UNSDLViewport9TickInputEv"), (uintptr_t)TickInput);
 	_CauseInputEvent = so_symbol(&main_mod, "_ZN13UNSDLViewport15CauseInputEventEi12EInputActionf");
