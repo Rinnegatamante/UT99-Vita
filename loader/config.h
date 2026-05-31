@@ -23,3 +23,12 @@
 #define sceLibcBridge_fprintf fprintf
 #define sceLibcBridge_ferror ferror
 #endif
+
+#define USE_VGL_ALLOCATORS
+#ifndef USE_VGL_ALLOCATORS
+#define vglMalloc malloc
+#define vglFree free
+#define vglCalloc calloc
+#define vglMemalign memalign
+#define vglRealloc realloc
+#endif

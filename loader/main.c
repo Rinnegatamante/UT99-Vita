@@ -119,11 +119,6 @@ char *getcwd_hook(char *buf, size_t size) {
 	return buf;
 }
 
-int posix_memalign(void **memptr, size_t alignment, size_t size) {
-	*memptr = memalign(alignment, size);
-	return 0;
-}
-
 int __android_log_print(int prio, const char *tag, const char *fmt, ...) {
 #ifdef ENABLE_DEBUG
 	va_list list;
@@ -793,8 +788,6 @@ int ret99() {
 	return 99;
 }
 
-int chdir_hook(const char *path) {
-	return 0;
 }
 
 static so_default_dynlib gl_hook[] = {
@@ -1191,7 +1184,6 @@ static so_default_dynlib default_dynlib[] = {
 	{ "atoi", (uintptr_t)&atoi },
 	{ "atol", (uintptr_t)&atol },
 	{ "atoll", (uintptr_t)&atoll },
-	{ "basename", (uintptr_t)&basename },
 	// { "bind", (uintptr_t)&bind },
 	{ "bsd_signal", (uintptr_t)&ret0 },
 	{ "bsearch", (uintptr_t)&bsearch },
@@ -1199,7 +1191,7 @@ static so_default_dynlib default_dynlib[] = {
 	{ "calloc", (uintptr_t)&vglCalloc },
 	{ "ceil", (uintptr_t)&ceil },
 	{ "ceilf", (uintptr_t)&ceilf },
-	{ "chdir", (uintptr_t)&chdir_hook },
+	{ "chdir", (uintptr_t)&ret0 },
 	{ "clearerr", (uintptr_t)&clearerr },
 	{ "clock", (uintptr_t)&clock },
 	{ "clock_gettime", (uintptr_t)&clock_gettime_hook },
@@ -1353,7 +1345,6 @@ static so_default_dynlib default_dynlib[] = {
 	{ "qsort", (uintptr_t)&qsort },
 	{ "rand", (uintptr_t)&rand },
 	{ "read", (uintptr_t)&read },
-	{ "realpath", (uintptr_t)&realpath },
 	{ "realloc", (uintptr_t)&vglRealloc },
 	// { "recv", (uintptr_t)&recv },
 	{ "roundf", (uintptr_t)&roundf },
@@ -1389,7 +1380,6 @@ static so_default_dynlib default_dynlib[] = {
 	{ "strcoll", (uintptr_t)&strcoll },
 	{ "strcpy", (uintptr_t)&strcpy },
 	{ "strcspn", (uintptr_t)&strcspn },
-	{ "strdup", (uintptr_t)&strdup },
 	{ "strerror", (uintptr_t)&strerror },
 	{ "strerror_r", (uintptr_t)&strerror_r_hook },
 	{ "strftime", (uintptr_t)&strftime },
@@ -1670,7 +1660,6 @@ static so_default_dynlib default_dynlib[] = {
 	{ "IMG_Load", (uintptr_t)&IMG_Load_hook },
 	{ "IMG_Load_RW", (uintptr_t)&IMG_Load_RW },
 	{ "raise", (uintptr_t)&raise },
-	{ "posix_memalign", (uintptr_t)&posix_memalign },
 	{ "swprintf", (uintptr_t)&swprintf },
 	{ "wcscpy", (uintptr_t)&wcscpy },
 	{ "wcscat", (uintptr_t)&wcscat },
