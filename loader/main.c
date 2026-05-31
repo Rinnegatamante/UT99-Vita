@@ -2516,15 +2516,27 @@ int TickInput(uint8_t *this) {
 	return 0;
 }
 
+double appSeconds() {
+	return (double)sceKernelGetProcessTimeLow() * 0.000001f;
+}
+
 void patch_game(void) {
 	for (int i = 0; i < FDS_ARRAY_SIZE; i++) {
 		fake_fds_pool[i] = &fake_fds[i];
 	}
 	
+	// Optimized variants
+	hook_addr(so_symbol(&main_mod, "_Z10appSecondsv"), (uintptr_t)appSeconds);
+	hook_addr(so_symbol(&main_mod, "_Z9appCyclesv"), (uintptr_t)ret0);
 	
+	// Disable file logging
 	hook_addr(so_symbol(&main_mod, "_ZN13FOutputDevice4LogfE5ENamePKcz"), (uintptr_t)ret0);
 	hook_addr(so_symbol(&main_mod, "_ZN17FOutputDeviceFile9SerializeEPKc5EName"), (uintptr_t)ret0);
+	
+	// Hook appThrow for debugging purposes
 	hook_addr(so_symbol(&main_mod, "_Z9appThrowfPKcz"), (uintptr_t)appThrowF);
+	
+	// Reimplement input code
 	hook_addr(so_symbol(&main_mod, "_ZN13UNSDLViewport9TickInputEv"), (uintptr_t)TickInput);
 	_CauseInputEvent = so_symbol(&main_mod, "_ZN13UNSDLViewport15CauseInputEventEi12EInputActionf");
 	MouseDelta = so_symbol(&main_mod, "_ZN11UGameEngine10MouseDeltaEP9UViewportjff");
