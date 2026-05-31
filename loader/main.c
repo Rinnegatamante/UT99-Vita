@@ -2527,7 +2527,8 @@ void patch_game(void) {
 	
 	// Optimized variants
 	hook_addr(so_symbol(&main_mod, "_Z10appSecondsv"), (uintptr_t)appSeconds);
-	hook_addr(so_symbol(&main_mod, "_Z9appCyclesv"), (uintptr_t)ret0);
+	uintptr_t to_nop[] = {so_trampoline_symbol(&main_mod, "_Z9appCyclesv")};
+	sceClibPrintf("NOP-ed %d occurrencies of appCycles\n", so_nop_calls(&main_mod, to_nop, 1));
 	
 	// Make texture upload always use glTexImage2D
 	uint8_t *addr = (uint8_t *)so_symbol(&main_mod, "_ZN22UNOpenGLESRenderDevice13UploadTextureER12FTextureInfoii"); // 001E2780
