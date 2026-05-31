@@ -61,8 +61,6 @@
 #define XXH_memset sceClibMemset
 #include "xxhash_utils.h"
 
-//#define ENABLE_DEBUG
-
 #ifdef ENABLE_DEBUG
 #define dlog sceClibPrintf
 #else
