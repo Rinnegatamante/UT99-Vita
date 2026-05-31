@@ -2698,8 +2698,12 @@ int main(int argc, char *argv[]) {
 			strcpy(cached_dirs[i][cached_entries[i]].d_name, sce_dir.d_name); \
 			cached_dirs[i][cached_entries[i]].d_type = SCE_S_ISDIR(sce_dir.d_stat.st_mode) ? DT_DIR : DT_REG; \
 			char * s = strstr(sce_dir.d_name, "."); \
-			if (s && s[1] == 'u') { \
-				s[0] = 0; \
+			if (s) { \
+				if (s[1] == 'u') { \
+					s[0] = 0; \
+				} else { \
+					while (*s) s++; \
+				}\
 				uint64_t hash = XXH3_64bits(sce_dir.d_name, s - sce_dir.d_name); \
 				cache_insert(hash, cached_dirs[i][cached_entries[i]].fullpath); \
 			} \
