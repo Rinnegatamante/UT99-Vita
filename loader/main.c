@@ -50,7 +50,9 @@
 #include "sha1.h"
 
 #include "vorbis/vorbisfile.h"
+#ifdef USE_SCELIBC_BRIDGE
 #include "libc_bridge.h"
+#endif
 
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_IMPLEMENTATION
