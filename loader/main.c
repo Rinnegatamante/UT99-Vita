@@ -2541,6 +2541,10 @@ void patch_game(void) {
 	// Disable file logging
 	hook_addr(so_symbol(&main_mod, "_ZN17FOutputDeviceFile9SerializeEPKc5EName"), (uintptr_t)ret0);
 	
+	// Hook guard with native ones
+	hook_addr(so_symbol(&main_mod, "__cxa_guard_acquire"), (uintptr_t)&__cxa_guard_acquire);
+	hook_addr(so_symbol(&main_mod, "__cxa_guard_release"), (uintptr_t)&__cxa_guard_release);
+
 	// Hook appThrow for debugging purposes
 	hook_addr(so_symbol(&main_mod, "_Z9appThrowfPKcz"), (uintptr_t)appThrowF);
 	
