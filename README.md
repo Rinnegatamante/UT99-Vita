@@ -46,6 +46,12 @@ FinalAimDelta = ((ScaleXYZ * GyroDelta) + RightAnalogDelta) * ScaleRUV
 
 ## Changelog
 
+### v.0.7
+- Cleaned up the symbol lookup table of the loader from several unused symbols (reduces memory usage of the game).
+- Upgraded to latest so loader variant. (Improves boot time)
+- Upgraded to latest vitaGL commit.
+- Applied several patches to game code to reduce CPU workload. (Together with vitaGL improvements, it brings approximately a 15-20% performance boost)
+
 ### v.0.6.1
 
 - Fixed a bug causing the directory listing cache to fail with System folder, resulting in crashes accessing some game menus.
