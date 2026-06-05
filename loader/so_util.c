@@ -534,7 +534,7 @@ int so_nop_calls(const so_module *mod, uintptr_t *addresses, int addresses_num) 
 			dest &= ~1;
 			for (int i = 0; i < addresses_num; i++) {
 				if (addresses[i] == dest) {
-					*(uint32_t *)a = 0xE1A00000; // NOP
+					*(uint32_t *)a = 0xE320F000; // NOP
 					count++;
 					break;
 				}

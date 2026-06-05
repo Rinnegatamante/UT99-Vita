@@ -2532,8 +2532,7 @@ void patch_game(void) {
 	
 	// Make texture upload always use glTexImage2D
 	uint8_t *addr = (uint8_t *)so_symbol(&main_mod, "_ZN22UNOpenGLESRenderDevice13UploadTextureER12FTextureInfoii"); // 001E2780
-	uint32_t nop = 0xe320f000; // nop
-	kuKernelCpuUnrestrictedMemcpy(addr + 0x204, &nop, sizeof(uint32_t));
+	*(uint32_t *)(addr + 0x204) = 0xE320F000; // nop
 
 	// Disable file logging
 	hook_addr(so_symbol(&main_mod, "_ZN13FOutputDevice4LogfE5ENamePKcz"), (uintptr_t)ret0);
@@ -2546,7 +2545,7 @@ void patch_game(void) {
 	hook_addr(so_symbol(&main_mod, "_ZN13UNSDLViewport9TickInputEv"), (uintptr_t)TickInput);
 	_CauseInputEvent = so_symbol(&main_mod, "_ZN13UNSDLViewport15CauseInputEventEi12EInputActionf");
 	MouseDelta = so_symbol(&main_mod, "_ZN11UGameEngine10MouseDeltaEP9UViewportjff");
-	InputKey = main_mod.text_base + 0x1D4F38;
+	InputKey = main_mod.text_base + 0x1D4F38; // FIXME: Would be nice to make this version agnostic
 }
 
 void *pthread_main(void *arg) {
