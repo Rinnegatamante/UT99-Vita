@@ -222,67 +222,6 @@ static void init_static_cond(pthread_cond_t **cond)
 	}
 }
 
-int pthread_attr_destroy_soloader(pthread_attr_t **attr)
-{
-	int ret = pthread_attr_destroy(*attr);
-	vglFree(*attr);
-	return ret;
-}
-
-int pthread_attr_getstack_soloader(const pthread_attr_t **attr,
-				   void **stackaddr,
-				   size_t *stacksize)
-{
-	return pthread_attr_getstack(*attr, stackaddr, stacksize);
-}
-
-__attribute__((unused)) int pthread_condattr_init_soloader(pthread_condattr_t **attr)
-{
-	*attr = vglCalloc(1, sizeof(pthread_condattr_t));
-
-	return pthread_condattr_init(*attr);
-}
-
-__attribute__((unused)) int pthread_condattr_destroy_soloader(pthread_condattr_t **attr)
-{
-	int ret = pthread_condattr_destroy(*attr);
-	vglFree(*attr);
-	return ret;
-}
-
-int pthread_cond_init_soloader(pthread_cond_t **cond,
-				   const pthread_condattr_t **attr)
-{
-	*cond = vglCalloc(1, sizeof(pthread_cond_t));
-
-	if (attr != NULL)
-		return pthread_cond_init(*cond, *attr);
-	else
-		return pthread_cond_init(*cond, NULL);
-}
-
-int pthread_cond_destroy_soloader(pthread_cond_t **cond)
-{
-	int ret = pthread_cond_destroy(*cond);
-	vglFree(*cond);
-	return ret;
-}
-
-int pthread_cond_signal_soloader(pthread_cond_t **cond)
-{
-	init_static_cond(cond);
-	return pthread_cond_signal(*cond);
-}
-
-int pthread_cond_timedwait_soloader(pthread_cond_t **cond,
-					pthread_mutex_t **mutex,
-					struct timespec *abstime)
-{
-	init_static_cond(cond);
-	init_static_mutex(mutex);
-	return pthread_cond_timedwait(*cond, *mutex, abstime);
-}
-
 int pthread_create_soloader(pthread_t **thread,
 				const pthread_attr_t **attr,
 				void *(*start)(void *),
@@ -314,18 +253,6 @@ int pthread_mutexattr_settype_soloader(pthread_mutexattr_t **attr, int type)
 	return pthread_mutexattr_settype(*attr, type);
 }
 
-int pthread_mutexattr_setpshared_soloader(pthread_mutexattr_t **attr, int pshared)
-{
-	return pthread_mutexattr_setpshared(*attr, pshared);
-}
-
-int pthread_mutexattr_destroy_soloader(pthread_mutexattr_t **attr)
-{
-	int ret = pthread_mutexattr_destroy(*attr);
-	vglFree(*attr);
-	return ret;
-}
-
 int pthread_mutex_destroy_soloader(pthread_mutex_t **mutex)
 {
 	int ret = pthread_mutex_destroy(*mutex);
@@ -348,12 +275,6 @@ int pthread_mutex_lock_soloader(pthread_mutex_t **mutex)
 {
 	init_static_mutex(mutex);
 	return pthread_mutex_lock(*mutex);
-}
-
-int pthread_mutex_trylock_soloader(pthread_mutex_t **mutex)
-{
-	init_static_mutex(mutex);
-	return pthread_mutex_trylock(*mutex);
 }
 
 int pthread_mutex_unlock_soloader(pthread_mutex_t **mutex)
@@ -388,101 +309,9 @@ int pthread_attr_setdetachstate_soloader(pthread_attr_t **attr, int state)
 	return pthread_attr_setdetachstate(*attr, !state);
 }
 
-int pthread_attr_setstacksize_soloader(pthread_attr_t **attr, size_t stacksize)
-{
-	return pthread_attr_setstacksize(*attr, stacksize);
-}
-
-int pthread_attr_getstacksize_soloader(pthread_attr_t **attr, size_t *stacksize)
-{
-	return pthread_attr_getstacksize(*attr, stacksize);
-}
-
-int pthread_attr_setschedparam_soloader(pthread_attr_t **attr,
-					const struct sched_param *param)
-{
-	return pthread_attr_setschedparam(*attr, param);
-}
-
-int pthread_attr_setstack_soloader(pthread_attr_t **attr,
-				   void *stackaddr,
-				   size_t stacksize)
-{
-	return pthread_attr_setstack(*attr, stackaddr, stacksize);
-}
-
-int pthread_setschedparam_soloader(const pthread_t *thread, int policy,
-				   const struct sched_param *param)
-{
-	return pthread_setschedparam(*thread, policy, param);
-}
-
-int pthread_getschedparam_soloader(const pthread_t *thread, int *policy,
-				   struct sched_param *param)
-{
-	return pthread_getschedparam(*thread, policy, param);
-}
-
-int pthread_detach_soloader(const pthread_t *thread)
-{
-	return pthread_detach(*thread);
-}
-
-int pthread_getattr_np_soloader(pthread_t* thread, pthread_attr_t *attr) {
-	fprintf(stderr, "[WARNING!] Not implemented: pthread_getattr_np\n");
-	return 0;
-}
-
-int pthread_equal_soloader(const pthread_t *t1, const pthread_t *t2)
-{
-	if (t1 == t2)
-		return 1;
-	if (!t1 || !t2)
-		return 0;
-	return pthread_equal(*t1, *t2);
-}
-
 #ifndef MAX_TASK_COMM_LEN
 #define MAX_TASK_COMM_LEN 16
 #endif
-
-int pthread_setname_np_soloader(const pthread_t *thread, const char* thread_name) {
-	if (thread == 0 || thread_name == NULL) {
-		return EINVAL;
-	}
-	size_t thread_name_len = strlen(thread_name);
-	if (thread_name_len >= MAX_TASK_COMM_LEN) {
-		return ERANGE;
-	}
-
-	// TODO: Implement the actual name setting if possible
-	fprintf(stderr, "PTHR: pthread_setname_np with name %s\n", thread_name);
-
-	return 0;
-}
-
-int clock_gettime_hook(int clk_id, struct timespec *t) {
-	struct timeval now;
-	int rv = gettimeofday(&now, NULL);
-	if (rv)
-		return rv;
-	t->tv_sec = now.tv_sec;
-	t->tv_nsec = now.tv_usec * 1000;
-
-	return 0;
-}
-
-
-int GetCurrentThreadId(void) {
-	return sceKernelGetThreadId();
-}
-
-extern void *__aeabi_uldivmod;
-extern void *__aeabi_ldiv0;
-extern void *__aeabi_ul2f;
-extern void *__aeabi_l2f;
-extern void *__aeabi_d2lz;
-extern void *__aeabi_l2d;
 
 int GetEnv(void *vm, void **env, int r2) {
 	*env = fake_env;
@@ -628,17 +457,6 @@ int fclose_hook(FILE *fp) {
 	
 }
 
-extern void *__aeabi_atexit;
-extern void *__aeabi_ddiv;
-extern void *__aeabi_dmul;
-extern void *__aeabi_dadd;
-extern void *__aeabi_i2d;
-extern void *__aeabi_idiv;
-extern void *__aeabi_idivmod;
-extern void *__aeabi_ldivmod;
-extern void *__aeabi_uidiv;
-extern void *__aeabi_uidivmod;
-extern void *__aeabi_uldivmod;
 extern void *__cxa_atexit;
 extern void *__cxa_finalize;
 extern void *__cxa_call_unexpected;
@@ -670,42 +488,6 @@ typedef struct __attribute__((__packed__)) stat64_bionic {
 	unsigned long st_ctime_nsec;
 	unsigned long long __pad4;
 } stat64_bionic;
-
-int lstat_hook(const char *pathname, stat64_bionic *statbuf) {
-	dlog("lstat(%s)\n", pathname);
-	int res;
-	struct stat st;
-	if (strncmp(pathname, "ux0:", 4)) {
-		char fname[256];
-		sprintf(fname, "ux0:data/ut99/System/%s", pathname);
-		dlog("lstat(%s) fixed\n", fname);
-		res = stat(fname, &st);
-	} else {
-		res = stat(pathname, &st);
-	}
-	if (res == 0) {
-		if (!statbuf) {
-			statbuf = vglMalloc(sizeof(stat64_bionic));
-		}
-		statbuf->st_dev = st.st_dev;
-		statbuf->st_ino = st.st_ino;
-		statbuf->st_mode = st.st_mode;
-		statbuf->st_nlink = st.st_nlink;
-		statbuf->st_uid = st.st_uid;
-		statbuf->st_gid = st.st_gid;
-		statbuf->st_rdev = st.st_rdev;
-		statbuf->st_size = st.st_size;
-		statbuf->st_blksize = st.st_blksize;
-		statbuf->st_blocks = st.st_blocks;
-		statbuf->st_atime = st.st_atime;
-		statbuf->st_atime_nsec = 0;
-		statbuf->st_mtime = st.st_mtime;
-		statbuf->st_mtime_nsec = 0;
-		statbuf->st_ctime = st.st_ctime;
-		statbuf->st_ctime_nsec = 0;
-	}
-	return res;
-}
 
 int stat_hook(const char *pathname, stat64_bionic *statbuf) {
 	dlog("stat(%s)\n", pathname);
@@ -745,18 +527,6 @@ int stat_hook(const char *pathname, stat64_bionic *statbuf) {
 
 extern void *__cxa_guard_acquire;
 extern void *__cxa_guard_release;
-
-void *sceClibMemclr(void *dst, SceSize len) {
-	if (!dst) {
-		printf("memclr on NULL\n");
-		return NULL;
-	}
-	return sceClibMemset(dst, 0, len);
-}
-
-void *sceClibMemset2(void *dst, SceSize len, int ch) {
-	return sceClibMemset(dst, ch, len);
-}
 
 void *Android_JNI_GetEnv() {
 	return fake_env;
@@ -994,32 +764,7 @@ void __assert2(const char *file, int line, const char *func, const char *expr) {
 	sceKernelExitProcess(0);
 }
 
-void *dlsym_hook( void *handle, const char *symbol) {
-	//dlog("dlsym %s\n", symbol);
-	return vglGetProcAddress(symbol);
-}
-
-int strerror_r_hook(int errnum, char *buf, size_t buflen) {
-	strerror_r(errnum, buf, buflen);
-	dlog("Error %d: %s\n",errnum, buf);
-	return 0;
-}
-
-extern void *__aeabi_ul2d;
-extern void *__aeabi_d2ulz;
-
 uint32_t fake_stdout;
-
-int access_hook(const char *pathname, int mode) {
-	dlog("access(%s)\n", pathname);
-	if (strncmp(pathname, "ux0:", 4)) {
-		char real_fname[256];
-		sprintf(real_fname, "ux0:data/ut99/System/%s", pathname);
-		return access(real_fname, mode);
-	}
-	
-	return access(pathname, mode);
-}
 
 int mkdir_hook(const char *pathname, int mode) {
 	dlog("mkdir(%s)\n", pathname);
@@ -1071,33 +816,6 @@ int unlink_hook(const char *pathname) {
 	return sceIoRemove(pathname);
 }
 
-int remove_hook(const char *pathname) {
-	dlog("unlink(%s)\n", pathname);
-	if (strncmp(pathname, "ux0:", 4)) {
-		char real_fname[256];
-		sprintf(real_fname, "ux0:data/ut99/System/%s", pathname);
-		return sceIoRemove(real_fname);
-	}
-	
-	return sceIoRemove(pathname);
-}
-
-int rename_hook(const char *old_filename, const char *new_filename) {
-	dlog("rename %s -> %s\n", old_filename, new_filename);
-	char real_old[256], real_new[256];
-	if (strncmp(old_filename, "ux0:", 4)) {
-		sprintf(real_old, "ux0:data/ut99/System/%s", old_filename);
-	} else {
-		strcpy(real_old, old_filename);
-	}
-	if (strncmp(new_filename, "ux0:", 4)) {
-		sprintf(real_new, "ux0:data/ut99/System/%s", new_filename);
-	} else {
-		strcpy(real_new, new_filename);
-	}
-	return sceIoRename(real_old, real_new);
-}
-
 int SDL_Init_hook(uint32_t flags) {
 	return SDL_Init(flags | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
 }
@@ -1116,69 +834,23 @@ static so_default_dynlib default_dynlib[] = {
 	{ "xmp_start_player", (uintptr_t)&xmp_start_player},
 	{ "xmp_set_position", (uintptr_t)&xmp_set_position},
 	{ "xmp_play_buffer", (uintptr_t)&xmp_play_buffer},
-	{ "rename", (uintptr_t)&rename_hook},
-	{ "glGetError", (uintptr_t)&ret0},
-	{ "strtoll_l", (uintptr_t)&strtoll_l},
-	{ "strtoull_l", (uintptr_t)&strtoull_l},
-	{ "strtold_l", (uintptr_t)&strtold_l},
-	{ "wcstoul", (uintptr_t)&wcstoul},
-	{ "wcstoll", (uintptr_t)&wcstoll},
-	{ "wcstoull", (uintptr_t)&wcstoull},
-	{ "wcstof", (uintptr_t)&wcstof},
-	{ "wcstod", (uintptr_t)&wcstod},
-	{ "wcsnrtombs", (uintptr_t)&wcsnrtombs},
-	{ "mbsnrtowcs", (uintptr_t)&mbsnrtowcs},
-	{ "mbtowc", (uintptr_t)&mbtowc},
-	{ "mbrlen", (uintptr_t)&mbrlen},
 	{ "select", (uintptr_t)&select},
-	{ "isblank", (uintptr_t)&isblank},
 	{ "SDL_QuitSubSystem", (uintptr_t)&SDL_QuitSubSystem},
 	{ "SDL_QueueAudio", (uintptr_t)&SDL_QueueAudio},
 	{ "SDL_ClearQueuedAudio", (uintptr_t)&SDL_ClearQueuedAudio},
 	{ "SDL_GetCPUCount", (uintptr_t)&SDL_GetCPUCount},
 	{ "SDL_GetQueuedAudioSize", (uintptr_t)&SDL_GetQueuedAudioSize},
-	{ "SDL_VideoQuit", (uintptr_t)&SDL_VideoQuit},
 	{ "SDL_GameControllerName", (uintptr_t)&SDL_GameControllerName},
-	{ "SDL_ClearError", (uintptr_t)&SDL_ClearError},
 	{ "rmdir", (uintptr_t)&rmdir_hook},
-	{ "rmdir", (uintptr_t)&rmdir_hook},
-	{ "_setjmp", (uintptr_t)&setjmp},
-	{ "_longjmp", (uintptr_t)&longjmp},
-	{ "glFramebufferTexture2D", (uintptr_t)&glFramebufferTexture2D_hook},
 	{ "stdout", (uintptr_t)&fake_stdout },
 	{ "stdin", (uintptr_t)&fake_stdout },
 	{ "stderr", (uintptr_t)&fake_stdout },
-	{ "newlocale", (uintptr_t)&newlocale },
-	{ "uselocale", (uintptr_t)&uselocale },
-	{ "ov_read", (uintptr_t)&ov_read },
-	{ "ov_raw_seek", (uintptr_t)&ov_raw_seek },
-	{ "ov_open_callbacks", (uintptr_t)&ov_open_callbacks },
-	{ "ov_pcm_total", (uintptr_t)&ov_pcm_total },
-	{ "ov_clear", (uintptr_t)&ov_clear },
 	{ "SDL_GetRelativeMouseState", (uintptr_t)&SDL_GetRelativeMouseState },
 	{ "SDL_OpenAudioDevice", (uintptr_t)&SDL_OpenAudioDevice },
 	{ "SDL_PauseAudioDevice", (uintptr_t)&SDL_PauseAudioDevice },
 	{ "SDL_CloseAudioDevice", (uintptr_t)&SDL_CloseAudioDevice },
-	{ "SDL_LockAudioDevice", (uintptr_t)&SDL_LockAudioDevice },
-	{ "SDL_memset", (uintptr_t)&SDL_memset },
-	{ "SDL_UnlockAudioDevice", (uintptr_t)&SDL_UnlockAudioDevice },
-	{ "exp2f", (uintptr_t)&exp2f },
-	{ "__aeabi_l2d", (uintptr_t)&__aeabi_l2d },
-	{ "__aeabi_d2ulz", (uintptr_t)&__aeabi_d2ulz },
-	{ "__aeabi_ul2d", (uintptr_t)&__aeabi_ul2d },
-	{ "__pthread_cleanup_push", (uintptr_t)&ret0 },
-	{ "__pthread_cleanup_pop", (uintptr_t)&ret0 },
-	//{ "SDL_SendMouseMotion", (uintptr_t)&SDL_SendMouseMotion },
-	//{ "SDL_SendMouseButton", (uintptr_t)&SDL_SendMouseButton },
 	{ "SDL_SetTextInputRect", (uintptr_t)&SDL_SetTextInputRect },
-	{ "SDL_GameControllerAddMapping", (uintptr_t)&SDL_GameControllerAddMapping },
-	{ "sincos", (uintptr_t)&sincos },
 	{ "SDL_GetWindowDisplayMode", (uintptr_t)&SDL_GetWindowDisplayMode },
-	{ "SDL_SetWindowDisplayMode", (uintptr_t)&SDL_SetWindowDisplayMode },
-	{ "SDL_CreateSoftwareRenderer", (uintptr_t)&SDL_CreateSoftwareRenderer },
-	{ "SDL_RenderCopyEx", (uintptr_t)&SDL_RenderCopyEx },
-	{ "SDL_SetWindowGammaRamp", (uintptr_t)&SDL_SetWindowGammaRamp },
-	{ "SDL_GetWindowGammaRamp", (uintptr_t)&SDL_GetWindowGammaRamp },
 	{ "SDL_SetRelativeMouseMode", (uintptr_t)&SDL_SetRelativeMouseMode },
 	{ "SDL_WasInit", (uintptr_t)&SDL_WasInit },
 	{ "__assert2", (uintptr_t)&__assert2 },
@@ -1194,46 +866,12 @@ static so_default_dynlib default_dynlib[] = {
 #else
 	{ "closedir", (uintptr_t)&closedir_fake },	
 #endif
-	{ "g_SDL_BufferGeometry_w", (uintptr_t)&g_SDL_BufferGeometry_w },
-	{ "g_SDL_BufferGeometry_h", (uintptr_t)&g_SDL_BufferGeometry_h },
-	{ "__aeabi_ul2f", (uintptr_t)&__aeabi_ul2f },
-	{ "__aeabi_l2f", (uintptr_t)&__aeabi_l2f },
-	{ "__aeabi_d2lz", (uintptr_t)&__aeabi_d2lz },
-	{ "__aeabi_uldivmod", (uintptr_t)&__aeabi_uldivmod },
-	{ "__aeabi_memclr", (uintptr_t)&sceClibMemclr },
-	{ "__aeabi_memclr4", (uintptr_t)&sceClibMemclr },
-	{ "__aeabi_memclr8", (uintptr_t)&sceClibMemclr },
-	{ "__aeabi_memcpy4", (uintptr_t)&sceClibMemcpy },
-	{ "__aeabi_memcpy8", (uintptr_t)&sceClibMemcpy },
-	{ "__aeabi_memmove4", (uintptr_t)&memmove },
-	{ "__aeabi_memmove8", (uintptr_t)&memmove },
-	{ "__aeabi_memcpy", (uintptr_t)&sceClibMemcpy },
-	{ "__aeabi_memmove", (uintptr_t)&memmove },
-	{ "__aeabi_memset", (uintptr_t)&sceClibMemset2 },
-	{ "__aeabi_memset4", (uintptr_t)&sceClibMemset2 },
-	{ "__aeabi_memset8", (uintptr_t)&sceClibMemset2 },
-	{ "__aeabi_atexit", (uintptr_t)&__aeabi_atexit },
-	{ "__aeabi_uidiv", (uintptr_t)&__aeabi_uidiv },
-	{ "__aeabi_uidivmod", (uintptr_t)&__aeabi_uidivmod },
-	{ "__aeabi_ldivmod", (uintptr_t)&__aeabi_ldivmod },
-	{ "__aeabi_idivmod", (uintptr_t)&__aeabi_idivmod },
-	{ "__aeabi_idiv", (uintptr_t)&__aeabi_idiv },
-	{ "__aeabi_ddiv", (uintptr_t)&__aeabi_ddiv },
-	{ "__aeabi_dmul", (uintptr_t)&__aeabi_dmul },
-	{ "__aeabi_dadd", (uintptr_t)&__aeabi_dadd },
-	{ "__aeabi_i2d", (uintptr_t)&__aeabi_i2d },
 	{ "__android_log_print", (uintptr_t)&__android_log_print },
 	{ "__android_log_vprint", (uintptr_t)&__android_log_vprint },
 	{ "__android_log_write", (uintptr_t)&__android_log_write },
 	{ "__cxa_atexit", (uintptr_t)&__cxa_atexit },
-	{ "__cxa_call_unexpected", (uintptr_t)&__cxa_call_unexpected },
-	{ "__cxa_guard_acquire", (uintptr_t)&__cxa_guard_acquire },
-	{ "__cxa_guard_release", (uintptr_t)&__cxa_guard_release },
 	{ "__cxa_finalize", (uintptr_t)&__cxa_finalize },
 	{ "__errno", (uintptr_t)&__errno },
-	{ "__strlen_chk", (uintptr_t)&__strlen_chk },
-	{ "__gnu_unwind_frame", (uintptr_t)&__gnu_unwind_frame },
-	{ "__gnu_Unwind_Find_exidx", (uintptr_t)&ret0 },
 	{ "dl_unwind_find_exidx", (uintptr_t)&ret0 },
 	{ "__sF", (uintptr_t)&__sF_fake },
 	{ "__stack_chk_fail", (uintptr_t)&__stack_chk_fail },
@@ -1242,250 +880,92 @@ static so_default_dynlib default_dynlib[] = {
 	{ "_tolower_tab_", (uintptr_t)&BIONIC_tolower_tab_},
 	{ "_toupper_tab_", (uintptr_t)&BIONIC_toupper_tab_},
 	{ "abort", (uintptr_t)&abort_hook },
-	{ "access", (uintptr_t)&access_hook },
-	{ "acos", (uintptr_t)&acos },
-	{ "acosh", (uintptr_t)&acosh },
 	{ "asctime", (uintptr_t)&asctime },
-	{ "acosf", (uintptr_t)&acosf },
-	{ "asin", (uintptr_t)&asin },
-	{ "asinh", (uintptr_t)&asinh },
-	{ "asinf", (uintptr_t)&asinf },
 	{ "atan", (uintptr_t)&atan },
-	{ "atanh", (uintptr_t)&atanh },
 	{ "atan2", (uintptr_t)&atan2 },
-	{ "atan2f", (uintptr_t)&atan2f },
-	{ "atanf", (uintptr_t)&atanf },
 	{ "atoi", (uintptr_t)&atoi },
-	{ "atol", (uintptr_t)&atol },
-	{ "atoll", (uintptr_t)&atoll },
-	// { "bind", (uintptr_t)&bind },
-	{ "bsd_signal", (uintptr_t)&ret0 },
-	{ "bsearch", (uintptr_t)&bsearch },
-	{ "btowc", (uintptr_t)&btowc },
-	{ "calloc", (uintptr_t)&vglCalloc },
-	{ "ceil", (uintptr_t)&ceil },
 	{ "ceilf", (uintptr_t)&ceilf },
 	{ "chdir", (uintptr_t)&ret0 },
-	{ "clearerr", (uintptr_t)&clearerr },
-	{ "clock", (uintptr_t)&clock },
-	{ "clock_gettime", (uintptr_t)&clock_gettime_hook },
 	{ "close", (uintptr_t)&close },
 	{ "cos", (uintptr_t)&cos },
 	{ "cosf", (uintptr_t)&cosf },
-	{ "cosh", (uintptr_t)&cosh },
-	{ "crc32", (uintptr_t)&crc32 },
-	{ "deflate", (uintptr_t)&deflate },
-	{ "deflateEnd", (uintptr_t)&deflateEnd },
-	{ "deflateInit_", (uintptr_t)&deflateInit_ },
-	{ "deflateInit2_", (uintptr_t)&deflateInit2_ },
-	{ "deflateReset", (uintptr_t)&deflateReset },
-	{ "dlopen", (uintptr_t)&ret0 },
-	{ "dlsym", (uintptr_t)&dlsym_hook },
 	{ "exit", (uintptr_t)&exit },
 	{ "exp", (uintptr_t)&exp },
-	{ "exp2", (uintptr_t)&exp2 },
-	{ "expf", (uintptr_t)&expf },
-	{ "fabsf", (uintptr_t)&fabsf },
 	{ "fclose", (uintptr_t)&fclose_hook },
 	{ "fcntl", (uintptr_t)&ret0 },
-	// { "fdopen", (uintptr_t)&fdopen },
-	{ "feof", (uintptr_t)&sceLibcBridge_feof },
 	{ "ferror", (uintptr_t)&sceLibcBridge_ferror },
 	{ "fflush", (uintptr_t)&ret0 },
-	{ "floor", (uintptr_t)&floor },
-	{ "floorf", (uintptr_t)&floorf },
 	{ "fmod", (uintptr_t)&fmod },
-	{ "fmodf", (uintptr_t)&fmodf },
 	{ "fopen", (uintptr_t)&fopen_hook },
 	{ "fprintf", (uintptr_t)&sceLibcBridge_fprintf },
 	{ "fputc", (uintptr_t)&sceLibcBridge_fputc },
 	{ "fread", (uintptr_t)&fread_hook },
 	{ "free", (uintptr_t)&vglFree },
-	{ "frexp", (uintptr_t)&frexp },
-	{ "frexpf", (uintptr_t)&frexpf },
 	{ "fseek", (uintptr_t)&fseek_hook },
 	{ "ftell", (uintptr_t)&ftell_hook },
-	// { "ftruncate", (uintptr_t)&ftruncate },
 	{ "fwrite", (uintptr_t)&sceLibcBridge_fwrite },
 	{ "getc", (uintptr_t)&getc },
-	{ "gettid", (uintptr_t)&ret0 },
 	{ "getpid", (uintptr_t)&ret0 },
 	{ "getcwd", (uintptr_t)&getcwd_hook },
 	{ "getenv", (uintptr_t)&getenv },
-	{ "getwc", (uintptr_t)&getwc },
 	{ "gettimeofday", (uintptr_t)&gettimeofday },
-	{ "gzopen", (uintptr_t)&gzopen },
-	{ "inflate", (uintptr_t)&inflate },
-	{ "inflateEnd", (uintptr_t)&inflateEnd },
-	{ "inflateInit_", (uintptr_t)&inflateInit_ },
-	{ "inflateInit2_", (uintptr_t)&inflateInit2_ },
-	{ "inflateReset", (uintptr_t)&inflateReset },
-	{ "isascii", (uintptr_t)&isascii },
-	{ "isalnum", (uintptr_t)&isalnum },
-	{ "isalpha", (uintptr_t)&isalpha },
-	{ "iscntrl", (uintptr_t)&iscntrl },
-	{ "isdigit", (uintptr_t)&isdigit },
-	{ "islower", (uintptr_t)&islower },
-	{ "ispunct", (uintptr_t)&ispunct },
-	{ "isprint", (uintptr_t)&isprint },
-	{ "isspace", (uintptr_t)&isspace },
-	{ "isupper", (uintptr_t)&isupper },
-	{ "iswalpha", (uintptr_t)&iswalpha },
-	{ "iswcntrl", (uintptr_t)&iswcntrl },
-	{ "iswctype", (uintptr_t)&iswctype },
-	{ "iswdigit", (uintptr_t)&iswdigit },
-	{ "iswdigit", (uintptr_t)&iswdigit },
-	{ "iswlower", (uintptr_t)&iswlower },
-	{ "iswprint", (uintptr_t)&iswprint },
-	{ "iswpunct", (uintptr_t)&iswpunct },
-	{ "iswspace", (uintptr_t)&iswspace },
-	{ "iswupper", (uintptr_t)&iswupper },
-	{ "iswxdigit", (uintptr_t)&iswxdigit },
-	{ "isxdigit", (uintptr_t)&isxdigit },
 	{ "ldexp", (uintptr_t)&ldexp },
 	{ "ldexpf", (uintptr_t)&ldexpf },
-	// { "listen", (uintptr_t)&listen },
 	{ "localtime", (uintptr_t)&localtime },
 	{ "localtime_r", (uintptr_t)&localtime_r },
 	{ "log", (uintptr_t)&log },
-	{ "logf", (uintptr_t)&logf },
-	{ "log10", (uintptr_t)&log10 },
-	{ "log10f", (uintptr_t)&log10f },
-	{ "longjmp", (uintptr_t)&longjmp },
 	{ "lrand48", (uintptr_t)&lrand48 },
-	{ "lrint", (uintptr_t)&lrint },
-	{ "lrintf", (uintptr_t)&lrintf },
-	{ "lseek", (uintptr_t)&lseek },
-	{ "lseek64", (uintptr_t)&lseek64 },
 	{ "malloc", (uintptr_t)&vglMalloc },
-	{ "mbrtowc", (uintptr_t)&mbrtowc },
-	{ "memalign", (uintptr_t)&vglMemalign },
-	{ "memchr", (uintptr_t)&sceClibMemchr },
 	{ "memcmp", (uintptr_t)&memcmp },
 	{ "memcpy", (uintptr_t)&sceClibMemcpy },
 	{ "memmove", (uintptr_t)&memmove },
 	{ "memset", (uintptr_t)&sceClibMemset },
 	{ "mkdir", (uintptr_t)&mkdir_hook },
-	{ "modf", (uintptr_t)&modf },
-	{ "modff", (uintptr_t)&modff },
-	// { "poll", (uintptr_t)&poll },
 	{ "pow", (uintptr_t)&pow },
-	{ "powf", (uintptr_t)&powf },
 	{ "printf", (uintptr_t)&sceClibPrintf },
 	{ "pthread_join", (uintptr_t)&pthread_join_soloader },
-	{ "pthread_attr_destroy", (uintptr_t)&pthread_attr_destroy_soloader },
-	{ "pthread_attr_getstack", (uintptr_t)&pthread_attr_getstack_soloader },
 	{ "pthread_attr_init", (uintptr_t) &pthread_attr_init_soloader },
 	{ "pthread_attr_setdetachstate", (uintptr_t) &pthread_attr_setdetachstate_soloader },
-	{ "pthread_attr_setschedparam", (uintptr_t)&pthread_attr_setschedparam_soloader },
-	{ "pthread_attr_setstack", (uintptr_t)&pthread_attr_setstack_soloader },
-	{ "pthread_attr_setstacksize", (uintptr_t) &pthread_attr_setstacksize_soloader },
-	{ "pthread_attr_getstacksize", (uintptr_t) &pthread_attr_getstacksize_soloader },
 	{ "pthread_cond_broadcast", (uintptr_t) &pthread_cond_broadcast_soloader },
-	{ "pthread_cond_destroy", (uintptr_t) &pthread_cond_destroy_soloader },
-	{ "pthread_cond_init", (uintptr_t) &pthread_cond_init_soloader },
-	{ "pthread_cond_signal", (uintptr_t) &pthread_cond_signal_soloader },
-	{ "pthread_cond_timedwait", (uintptr_t) &pthread_cond_timedwait_soloader },
 	{ "pthread_cond_wait", (uintptr_t) &pthread_cond_wait_soloader },
 	{ "pthread_create", (uintptr_t) &pthread_create_soloader },
-	{ "pthread_detach", (uintptr_t) &pthread_detach_soloader },
-	{ "pthread_equal", (uintptr_t) &pthread_equal_soloader },
 	{ "pthread_exit", (uintptr_t) &pthread_exit },
-	{ "pthread_getattr_np", (uintptr_t) &pthread_getattr_np_soloader },
-	{ "pthread_getschedparam", (uintptr_t) &pthread_getschedparam_soloader },
-	{ "pthread_getspecific", (uintptr_t)&pthread_getspecific },
-	{ "pthread_key_create", (uintptr_t)&pthread_key_create },
-	{ "pthread_key_delete", (uintptr_t)&pthread_key_delete },
 	{ "pthread_mutex_destroy", (uintptr_t) &pthread_mutex_destroy_soloader },
 	{ "pthread_mutex_init", (uintptr_t) &pthread_mutex_init_soloader },
 	{ "pthread_mutex_lock", (uintptr_t) &pthread_mutex_lock_soloader },
-	{ "pthread_mutex_trylock", (uintptr_t) &pthread_mutex_trylock_soloader},
 	{ "pthread_mutex_unlock", (uintptr_t) &pthread_mutex_unlock_soloader },
-	{ "pthread_mutexattr_destroy", (uintptr_t) &pthread_mutexattr_destroy_soloader},
 	{ "pthread_mutexattr_init", (uintptr_t) &pthread_mutexattr_init_soloader},
-	{ "pthread_mutexattr_setpshared", (uintptr_t) &pthread_mutexattr_setpshared_soloader},
 	{ "pthread_mutexattr_settype", (uintptr_t) &pthread_mutexattr_settype_soloader},
-	{ "pthread_once", (uintptr_t)&pthread_once },
-	{ "pthread_self", (uintptr_t) &pthread_self },
-	{ "pthread_setschedparam", (uintptr_t) &pthread_setschedparam_soloader },
-	{ "pthread_setspecific", (uintptr_t)&pthread_setspecific },
-	{ "sched_get_priority_min", (uintptr_t)&ret0 },
-	{ "sched_get_priority_max", (uintptr_t)&ret99 },
 	{ "putc", (uintptr_t)&putc },
-	{ "puts", (uintptr_t)&puts },
-	{ "putwc", (uintptr_t)&putwc },
 	{ "qsort", (uintptr_t)&qsort },
-	{ "rand", (uintptr_t)&rand },
-	{ "read", (uintptr_t)&read },
 	{ "realloc", (uintptr_t)&vglRealloc },
-	// { "recv", (uintptr_t)&recv },
-	{ "roundf", (uintptr_t)&roundf },
-	{ "rint", (uintptr_t)&rint },
-	{ "rintf", (uintptr_t)&rintf },
-	// { "send", (uintptr_t)&send },
-	// { "sendto", (uintptr_t)&sendto },
 	{ "setenv", (uintptr_t)&setenv },
-	{ "setjmp", (uintptr_t)&setjmp },
-	{ "setlocale", (uintptr_t)&ret0 },
-	// { "setsockopt", (uintptr_t)&setsockopt },
 	{ "setvbuf", (uintptr_t)&setvbuf },
 	{ "sin", (uintptr_t)&sin },
 	{ "sinf", (uintptr_t)&sinf },
-	{ "sinh", (uintptr_t)&sinh },
-	//{ "sincos", (uintptr_t)&sincos },
 	{ "snprintf", (uintptr_t)&snprintf },
-	// { "socket", (uintptr_t)&socket },
 	{ "sprintf", (uintptr_t)&sprintf },
-	{ "sqrt", (uintptr_t)&sqrt },
-	{ "sqrtf", (uintptr_t)&sqrtf },
-	{ "srand", (uintptr_t)&srand },
 	{ "srand48", (uintptr_t)&srand48 },
-	{ "sscanf", (uintptr_t)&sscanf },
 	{ "chmod", (uintptr_t)&ret0 },
 	{ "stat", (uintptr_t)&stat_hook },
-	{ "lstat", (uintptr_t)&lstat_hook },
 	{ "strcasecmp", (uintptr_t)&strcasecmp },
 	{ "strcasestr", (uintptr_t)&strstr },
 	{ "strcat", (uintptr_t)&strcat },
 	{ "strchr", (uintptr_t)&strchr },
 	{ "strcmp", (uintptr_t)&sceClibStrcmp },
-	{ "strcoll", (uintptr_t)&strcoll },
 	{ "strcpy", (uintptr_t)&strcpy },
-	{ "strcspn", (uintptr_t)&strcspn },
-	{ "strerror", (uintptr_t)&strerror },
-	{ "strerror_r", (uintptr_t)&strerror_r_hook },
-	{ "strftime", (uintptr_t)&strftime },
-	{ "strlcpy", (uintptr_t)&strlcpy },
 	{ "strlen", (uintptr_t)&strlen },
 	{ "strncasecmp", (uintptr_t)&sceClibStrncasecmp },
-	{ "strncat", (uintptr_t)&sceClibStrncat },
 	{ "strncmp", (uintptr_t)&sceClibStrncmp },
 	{ "strncpy", (uintptr_t)&sceClibStrncpy },
-	{ "strpbrk", (uintptr_t)&strpbrk },
-	{ "strrchr", (uintptr_t)&sceClibStrrchr },
 	{ "strstr", (uintptr_t)&sceClibStrstr },
 	{ "strtod", (uintptr_t)&strtod },
-	{ "strtol", (uintptr_t)&strtol },
 	{ "strtoul", (uintptr_t)&strtoul },
-	{ "strtoll", (uintptr_t)&strtoll },
-	{ "strtoull", (uintptr_t)&strtoull },
-	{ "strtok", (uintptr_t)&strtok },
-	{ "strxfrm", (uintptr_t)&strxfrm },
-	{ "sysconf", (uintptr_t)&ret0 },
 	{ "tan", (uintptr_t)&tan },
-	{ "tanf", (uintptr_t)&tanf },
-	{ "tanh", (uintptr_t)&tanh },
 	{ "time", (uintptr_t)&time },
 	{ "gmtime", (uintptr_t)&gmtime },
 	{ "mktime", (uintptr_t)&mktime },
-	//{ "utime", (uintptr_t)&utime },
 	{ "difftime", (uintptr_t)&difftime },
-	{ "tolower", (uintptr_t)&tolower },
-	{ "toupper", (uintptr_t)&toupper },
-	{ "towlower", (uintptr_t)&towlower },
-	{ "towupper", (uintptr_t)&towupper },
-	{ "ungetc", (uintptr_t)&ungetc },
-	{ "ungetwc", (uintptr_t)&ungetwc },
 	{ "usleep", (uintptr_t)&ret0 },
 	{ "vasprintf", (uintptr_t)&vasprintf },
 	{ "vfprintf", (uintptr_t)&vfprintf },
@@ -1494,24 +974,6 @@ static so_default_dynlib default_dynlib[] = {
 	{ "vsscanf", (uintptr_t)&vsscanf },
 	{ "vsprintf", (uintptr_t)&vsprintf },
 	{ "vswprintf", (uintptr_t)&vswprintf },
-	{ "wcrtomb", (uintptr_t)&wcrtomb },
-	{ "wcscoll", (uintptr_t)&wcscoll },
-	{ "wcscmp", (uintptr_t)&wcscmp },
-	{ "wcsncpy", (uintptr_t)&wcsncpy },
-	{ "wcsftime", (uintptr_t)&wcsftime },
-	{ "wcslen", (uintptr_t)&wcslen },
-	{ "wcsxfrm", (uintptr_t)&wcsxfrm },
-	{ "wctob", (uintptr_t)&wctob },
-	{ "wctype", (uintptr_t)&wctype },
-	{ "wmemchr", (uintptr_t)&wmemchr },
-	{ "wmemcmp", (uintptr_t)&wmemcmp },
-	{ "wmemcpy", (uintptr_t)&wmemcpy },
-	{ "wmemmove", (uintptr_t)&wmemmove },
-	{ "wmemset", (uintptr_t)&wmemset },
-	{ "write", (uintptr_t)&write },
-	{ "sigaction", (uintptr_t)&ret0 },
-	{ "zlibVersion", (uintptr_t)&zlibVersion },
-	// { "writev", (uintptr_t)&writev },
 	{ "unlink", (uintptr_t)&unlink_hook },
 	{ "SDL_SetWindowGrab", (uintptr_t)&SDL_SetWindowGrab },
 	{ "SDL_SetWindowIcon", (uintptr_t)&ret0 },
@@ -1688,49 +1150,7 @@ static so_default_dynlib default_dynlib[] = {
 	{ "SDL_GameControllerClose", (uintptr_t)&SDL_GameControllerClose },
 	{ "SDL_FreeCursor", (uintptr_t)&SDL_FreeCursor },
 	{ "SDL_CreateColorCursor", (uintptr_t)&SDL_CreateColorCursor },
-	{ "IMG_Init", (uintptr_t)&IMG_Init },
-	{ "IMG_Quit", (uintptr_t)&IMG_Quit },
-	{ "Mix_PauseMusic", (uintptr_t)&Mix_PauseMusic },
-	{ "Mix_ResumeMusic", (uintptr_t)&Mix_ResumeMusic },
-	{ "Mix_VolumeMusic", (uintptr_t)&Mix_VolumeMusic },
-	{ "Mix_LoadMUS", (uintptr_t)&Mix_LoadMUS_hook },
-	{ "Mix_PlayMusic", (uintptr_t)&Mix_PlayMusic },
-	{ "Mix_FreeMusic", (uintptr_t)&ret0 }, // FIXME
 	{ "nanosleep", (uintptr_t)&nanosleep_hook }, // FIXME
-	{ "Mix_RewindMusic", (uintptr_t)&Mix_RewindMusic },
-	{ "Mix_SetMusicPosition", (uintptr_t)&Mix_SetMusicPosition },
-	{ "Mix_CloseAudio", (uintptr_t)&Mix_CloseAudio },
-	{ "Mix_OpenAudio", (uintptr_t)&Mix_OpenAudio_hook },
-	{ "Mix_RegisterEffect", (uintptr_t)&Mix_RegisterEffect },
-	{ "Mix_Resume", (uintptr_t)&Mix_Resume },
-	{ "Mix_AllocateChannels", (uintptr_t)&Mix_AllocateChannels },
-	{ "Mix_ChannelFinished", (uintptr_t)&Mix_ChannelFinished },
-	{ "Mix_LoadWAV_RW", (uintptr_t)&Mix_LoadWAV_RW },
-	{ "Mix_FreeChunk", (uintptr_t)&Mix_FreeChunk },
-	{ "Mix_PausedMusic", (uintptr_t)&Mix_PausedMusic },
-	{ "Mix_Paused", (uintptr_t)&Mix_Paused },
-	{ "Mix_PlayingMusic", (uintptr_t)&Mix_PlayingMusic },
-	{ "Mix_Playing", (uintptr_t)&Mix_Playing },
-	{ "Mix_Volume", (uintptr_t)&Mix_Volume },
-	{ "Mix_SetDistance", (uintptr_t)&Mix_SetDistance },
-	{ "Mix_SetPanning", (uintptr_t)&Mix_SetPanning },
-	{ "Mix_QuerySpec", (uintptr_t)&Mix_QuerySpec },
-	{ "Mix_UnregisterEffect", (uintptr_t)&Mix_UnregisterEffect },
-	{ "Mix_HaltMusic", (uintptr_t)&Mix_HaltMusic },
-	{ "Mix_HaltChannel", (uintptr_t)&Mix_HaltChannel },
-	{ "Mix_LoadMUS_RW", (uintptr_t)&Mix_LoadMUS_RW },
-	{ "Mix_PlayChannelTimed", (uintptr_t)&Mix_PlayChannelTimed },
-	{ "Mix_Pause", (uintptr_t)&Mix_Pause },
-	{ "Mix_Init", (uintptr_t)&Mix_Init },
-	/*{ "TTF_Quit", (uintptr_t)&TTF_Quit },
-	{ "TTF_Init", (uintptr_t)&TTF_Init },
-	{ "TTF_RenderText_Blended", (uintptr_t)&TTF_RenderText_Blended },
-	{ "TTF_OpenFontRW", (uintptr_t)&TTF_OpenFontRW },
-	{ "TTF_SetFontOutline", (uintptr_t)&TTF_SetFontOutline },
-	{ "TTF_CloseFont", (uintptr_t)&TTF_CloseFont },
-	{ "TTF_GlyphIsProvided", (uintptr_t)&TTF_GlyphIsProvided },*/
-	{ "IMG_Load", (uintptr_t)&IMG_Load_hook },
-	{ "IMG_Load_RW", (uintptr_t)&IMG_Load_RW },
 	{ "raise", (uintptr_t)&raise },
 	{ "swprintf", (uintptr_t)&swprintf },
 	{ "wcscpy", (uintptr_t)&wcscpy },
@@ -1742,8 +1162,6 @@ static so_default_dynlib default_dynlib[] = {
 	{ "atof", (uintptr_t)&atof },
 	{ "trunc", (uintptr_t)&trunc },
 	{ "round", (uintptr_t)&round },
-	{ "llrintf", (uintptr_t)&llrintf },
-	{ "llrint", (uintptr_t)&llrint },
 	{ "SDLNet_FreePacket", (uintptr_t)&SDLNet_FreePacket },
 	{ "SDLNet_Quit", (uintptr_t)&SDLNet_Quit },
 	{ "SDLNet_GetError", (uintptr_t)&SDLNet_GetError },
@@ -1755,41 +1173,8 @@ static so_default_dynlib default_dynlib[] = {
 	{ "SDLNet_UDP_Close", (uintptr_t)&SDLNet_UDP_Close },
 	{ "SDLNet_ResolveHost", (uintptr_t)&SDLNet_ResolveHost },
 	{ "SDLNet_UDP_Open", (uintptr_t)&SDLNet_UDP_Open },
-	{ "remove", (uintptr_t)&remove_hook },
-	{ "IMG_SavePNG", (uintptr_t)&IMG_SavePNG },
-	{ "SDL_DetachThread", (uintptr_t)&SDL_DetachThread },
-	/*{ "TTF_SetFontHinting", (uintptr_t)&TTF_SetFontHinting },
-	{ "TTF_FontHeight", (uintptr_t)&TTF_FontHeight },
-	{ "TTF_FontAscent", (uintptr_t)&TTF_FontAscent },
-	{ "TTF_FontDescent", (uintptr_t)&TTF_FontDescent },
-	{ "TTF_SizeUTF8", (uintptr_t)&TTF_SizeUTF8 },
-	{ "TTF_SizeText", (uintptr_t)&TTF_SizeText },
-	{ "TTF_SetFontStyle", (uintptr_t)&TTF_SetFontStyle },
-	{ "TTF_RenderUTF8_Blended", (uintptr_t)&TTF_RenderUTF8_Blended },*/
-	{ "SDL_strlen", (uintptr_t)&SDL_strlen },
-	{ "SDL_LogDebug", (uintptr_t)&ret0 },
-	{ "SDL_HasEvents", (uintptr_t)&SDL_HasEvents },
-	{ "SDL_RWseek", (uintptr_t)&SDL_RWseek },
-	{ "SDL_JoystickNameForIndex", (uintptr_t)&SDL_JoystickNameForIndex },
-	{ "SDL_JoystickNumButtons", (uintptr_t)&SDL_JoystickNumButtons },
-	{ "SDL_JoystickGetGUID", (uintptr_t)&SDL_JoystickGetGUID },
-	{ "SDL_JoystickGetGUIDString", (uintptr_t)&SDL_JoystickGetGUIDString },
-	{ "SDL_JoystickNumHats", (uintptr_t)&SDL_JoystickNumHats },
-	{ "SDL_JoystickNumBalls", (uintptr_t)&SDL_JoystickNumBalls },
 	{ "SDL_JoystickName", (uintptr_t)&SDL_JoystickName_fake },
-	{ "SDL_GetNumRenderDrivers", (uintptr_t)&SDL_GetNumRenderDrivers },
-	{ "SDL_GetRenderDriverInfo", (uintptr_t)&SDL_GetRenderDriverInfo },
-	{ "SDL_GetNumVideoDrivers", (uintptr_t)&SDL_GetNumVideoDrivers },
-	{ "SDL_GetVideoDriver", (uintptr_t)&SDL_GetVideoDriver },
 	{ "SDL_GetBasePath", (uintptr_t)&SDL_GetBasePath_hook },
-	{ "SDL_RenderReadPixels", (uintptr_t)&SDL_RenderReadPixels },
-	{ "SDL_CreateRGBSurfaceFrom", (uintptr_t)&SDL_CreateRGBSurfaceFrom },
-	{ "SDL_SetWindowBordered", (uintptr_t)&SDL_SetWindowBordered },
-	{ "SDL_RestoreWindow", (uintptr_t)&SDL_RestoreWindow },
-	{ "SDL_sqrt", (uintptr_t)&SDL_sqrt },
-	{ "SDL_ThreadID", (uintptr_t)&SDL_ThreadID },
-	{ "__system_property_get", (uintptr_t)&ret0 },
-	{ "strnlen", (uintptr_t)&strnlen },
 	{ "gethostname", (uintptr_t)&gethostname },
 };
 
