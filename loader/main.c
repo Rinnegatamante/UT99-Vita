@@ -2527,15 +2527,18 @@ void patch_game(void) {
 	
 	// Optimized variants
 	hook_addr(so_symbol(&main_mod, "_Z10appSecondsv"), (uintptr_t)appSeconds);
-	uintptr_t to_nop[] = {so_trampoline_symbol(&main_mod, "_Z9appCyclesv")};
-	sceClibPrintf("NOP-ed %d occurrencies of appCycles\n", so_nop_calls(&main_mod, to_nop, 1));
+	uintptr_t to_nop[] = {
+		so_trampoline_symbol(&main_mod, "_Z9appCyclesv"),
+		so_trampoline_symbol(&main_mod, "_Z8appSleepf"),
+		so_trampoline_symbol(&main_mod, "_ZN13FOutputDevice4LogfE5ENamePKcz"),
+	};
+	sceClibPrintf("NOP-ed %d occurrencies.\n", so_nop_calls(&main_mod, to_nop, sizeof(to_nop) / sizeof(*to_nop)));
 	
 	// Make texture upload always use glTexImage2D
 	uint8_t *addr = (uint8_t *)so_symbol(&main_mod, "_ZN22UNOpenGLESRenderDevice13UploadTextureER12FTextureInfoii"); // 001E2780
 	*(uint32_t *)(addr + 0x204) = 0xE320F000; // nop
 
 	// Disable file logging
-	hook_addr(so_symbol(&main_mod, "_ZN13FOutputDevice4LogfE5ENamePKcz"), (uintptr_t)ret0);
 	hook_addr(so_symbol(&main_mod, "_ZN17FOutputDeviceFile9SerializeEPKc5EName"), (uintptr_t)ret0);
 	
 	// Hook appThrow for debugging purposes
