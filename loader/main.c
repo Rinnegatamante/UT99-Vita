@@ -826,6 +826,7 @@ int nanosleep_hook(const struct timespec *req, struct timespec *rem) {
 }
 
 static so_default_dynlib default_dynlib[] = {
+	{ "clock_gettime", (uintptr_t)&clock_gettime},
 	{ "xmp_end_player", (uintptr_t)&xmp_end_player},
 	{ "xmp_release_module", (uintptr_t)&xmp_release_module},
 	{ "xmp_free_context", (uintptr_t)&xmp_free_context},
@@ -952,6 +953,7 @@ static so_default_dynlib default_dynlib[] = {
 	{ "strcasestr", (uintptr_t)&strstr },
 	{ "strcat", (uintptr_t)&strcat },
 	{ "strchr", (uintptr_t)&strchr },
+	{ "strrchr", (uintptr_t)&strrchr },
 	{ "strcmp", (uintptr_t)&sceClibStrcmp },
 	{ "strcpy", (uintptr_t)&strcpy },
 	{ "strlen", (uintptr_t)&strlen },
