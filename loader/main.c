@@ -1937,7 +1937,24 @@ void patch_game(void) {
 	hook_addr(so_symbol(&main_mod, "_ZN13UNSDLViewport9TickInputEv"), (uintptr_t)TickInput);
 	_CauseInputEvent = so_symbol(&main_mod, "_ZN13UNSDLViewport15CauseInputEventEi12EInputActionf");
 	MouseDelta = so_symbol(&main_mod, "_ZN11UGameEngine10MouseDeltaEP9UViewportjff");
-	InputKey = main_mod.text_base + 0x1D4F38; // FIXME: Would be nice to make this version agnostic
+
+	uint8_t InputKey_signature[] = {
+		0x70, 0x4C, 0x2D, 0xE9, 0x10, 0xB0, 0x8D, 0xE2, 0x10, 0xD0, 
+		0x4D, 0xE2, 0x00, 0x50, 0xA0, 0xE3, 0x20, 0x00, 0x50, 0xE3, 
+		0x20, 0x00, 0x00, 0x3A, 0x00, 0x40, 0xA0, 0xE1, 0x70, 0x00, 
+		0xAF, 0xE6, 0x00, 0x00, 0x50, 0xE3, 0x1C, 0x00, 0x00, 0x4A,
+	};
+	int i = 0;
+	uint8_t *p = (uint8_t*)(main_mod.text_base + 0x100000);
+	while (i < sizeof(InputKey_signature) / sizeof(*InputKey_signature)) {
+		if (*p == InputKey_signature[i]) {
+			i++;
+		} else {
+			i = 0;
+		}
+		p++;
+	}
+	InputKey = (void *)((uintptr_t)p - sizeof(InputKey_signature) / sizeof(*InputKey_signature));
 }
 
 void *pthread_main(void *arg) {
