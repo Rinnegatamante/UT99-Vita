@@ -46,6 +46,11 @@ FinalAimDelta = ((ScaleXYZ * GyroDelta) + RightAnalogDelta) * ScaleRUV
 
 ## Changelog
 
+### v.0.8
+- Made the loader version agnostic: now you can use also newer versions of the Android port of UT99 (v.1.5.0 is still the recommended one for best performances).
+- Added precompiled shaders cache: reduces booting time by approximately 4 seconds.
+- Updated to latest vitaGL commit and enabled more speedhacks: slightly improves performances.
+
 ### v.0.7
 - Cleaned up the symbol lookup table of the loader from several unused symbols (reduces memory usage of the game).
 - Upgraded to latest so loader variant. (Improves boot time)
