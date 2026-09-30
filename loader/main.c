@@ -1937,8 +1937,8 @@ void patch_game(void) {
 	
 	// Reimplement input code
 	hook_addr(so_symbol(&main_mod, "_ZN13UNSDLViewport9TickInputEv"), (uintptr_t)TickInput);
-	_CauseInputEvent = so_symbol(&main_mod, "_ZN13UNSDLViewport15CauseInputEventEi12EInputActionf");
-	MouseDelta = so_symbol(&main_mod, "_ZN11UGameEngine10MouseDeltaEP9UViewportjff");
+	_CauseInputEvent = (int (*)(void *, int, int, float))so_symbol(&main_mod, "_ZN13UNSDLViewport15CauseInputEventEi12EInputActionf");
+	MouseDelta = (void (*)(void *, void *, uint32_t, float, float))so_symbol(&main_mod, "_ZN11UGameEngine10MouseDeltaEP9UViewportjff");
 
 	uint8_t InputKey_signature[] = {
 		0x70, 0x4C, 0x2D, 0xE9, 0x10, 0xB0, 0x8D, 0xE2, 0x10, 0xD0, 

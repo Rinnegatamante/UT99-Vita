@@ -10,6 +10,16 @@ endif()
 
 project(ut99 C CXX)
 include("${VITASDK}/share/vita.cmake" REQUIRED)
+add_subdirectory(libc_bridge)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL2_mixer REQUIRED IMPORTED_TARGET SDL2_mixer)
+pkg_check_modules(SDL2_image REQUIRED IMPORTED_TARGET SDL2_image)
+pkg_check_modules(SDL2_ttf REQUIRED IMPORTED_TARGET SDL2_ttf)
+pkg_check_modules(SDL2_net REQUIRED IMPORTED_TARGET SDL2_net)
+pkg_check_modules(sndfile REQUIRED IMPORTED_TARGET sndfile)
+pkg_check_modules(vorbisfile REQUIRED IMPORTED_TARGET vorbisfile)
+pkg_check_modules(openal REQUIRED IMPORTED_TARGET openal)
+pkg_check_modules(libxmp REQUIRED IMPORTED_TARGET libxmp)
 set(VITA_APP_NAME "Unreal Tournament")
 set(VITA_TITLEID  "UNREALT99")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
@@ -26,8 +36,17 @@ add_executable(ut99
   loader/filecache.cpp
 )
 
+
 target_link_libraries(ut99
-  -Wl,--whole-archive pthread -Wl,--no-whole-archive
+  -pthread
+  PkgConfig::libxmp
+  PkgConfig::SDL2_mixer
+  PkgConfig::SDL2_image
+  PkgConfig::SDL2_ttf
+  PkgConfig::SDL2_net
+  PkgConfig::sndfile
+  PkgConfig::vorbisfile
+  PkgConfig::openal
   openal
   SDL2_mixer
   SDL2_image
@@ -35,7 +54,6 @@ target_link_libraries(ut99
   SDL2_net
   freetype
   SDL2
-  xmp
   png
   webp
   jpeg
@@ -80,7 +98,7 @@ target_link_libraries(ut99
   SceMotion_stub
   SceHid_stub
   SceVshBridge_stub
-  SceKernelDmacmgr_stub
+  SceKernelDmacMgr_stub
 )
 
 vita_create_self(eboot.bin ut99 UNSAFE)
