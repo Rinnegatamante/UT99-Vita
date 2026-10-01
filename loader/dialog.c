@@ -11,6 +11,7 @@
 #include <vitaGL.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <stdarg.h>
 
 #include "main.h"
